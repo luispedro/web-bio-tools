@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sequence Alignment</title>
+</head>
+<body>
+
+    <script type="module">
+        import init, { smith_waterman } from './pkg/bioseq_align.js';
+
+        async function run() {
+            await init();
+            window.alignSequences = () => {
+                const seq1 = document.getElementById('seq1').value;
+                const seq2 = document.getElementById('seq2').value;
+                const result = smith_waterman(seq1, seq2);
+                document.getElementById('result').textContent = 
+                    result.aligned_seq1 + '\n' +
+                    result.aligned_seq2;
+            };
+        }
+
+        run();
+    </script>
+    <h2>Sequence Alignment using Smith-Waterman</h2>
+    <textarea id="seq1" placeholder="Enter first sequence"></textarea>
+    <textarea id="seq2" placeholder="Enter second sequence"></textarea>
+    <button onclick="alignSequences()">Align</button>
+    <pre id="result"></pre>
+</body>
+</html>
