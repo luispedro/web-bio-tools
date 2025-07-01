@@ -53,9 +53,22 @@ fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
     }
 
     // Traceback
-    let (mut i, mut j) = max_pos;
+    let mut i = len1;
+    let mut j = len2;
     let mut aligned_seq1 = Vec::new();
     let mut aligned_seq2 = Vec::new();
+
+    while i > max_pos.0  {
+        aligned_seq1.push(seq1[i - 1]);
+        aligned_seq2.push(b'-');
+        i -= 1;
+    }
+
+    while j > max_pos.1 {
+        aligned_seq1.push(b'-');
+        aligned_seq2.push(seq2[j - 1]);
+        j -= 1;
+    }
 
     while i > 0 && j > 0 && score_matrix[i][j] > 0 {
         let current_score = score_matrix[i][j];
@@ -79,6 +92,16 @@ fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
         } else {
             break;
         }
+    }
+    while i > 0 {
+        aligned_seq1.push(seq1[i - 1]);
+        aligned_seq2.push(b'-');
+        i -= 1;
+    }
+    while j > 0 {
+        aligned_seq1.push(b'-');
+        aligned_seq2.push(seq2[j - 1]);
+        j -= 1;
     }
 
     aligned_seq1.reverse();
