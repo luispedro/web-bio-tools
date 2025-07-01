@@ -15,10 +15,14 @@
                 const seq1 = document.getElementById('seq1').value;
                 const seq2 = document.getElementById('seq2').value;
                 const result = smith_waterman(seq1, seq2);
-                document.getElementById('result').textContent = 
+                document.getElementById('result-container').style.visibility = 'visible';
+                document.getElementById('result').textContent =
                     result.aligned_seq1 + '\n' +
                     result.aligned_seq2;
+                document.getElementById('alignment-length').textContent = result.aligned_length;
+                document.getElementById('alignment-score').textContent = (100*result.aligned_identity).toFixed(2) + '%';
             };
+
         }
 
         run();
@@ -27,6 +31,11 @@
     <textarea id="seq1" placeholder="Enter first sequence"></textarea>
     <textarea id="seq2" placeholder="Enter second sequence"></textarea>
     <button onclick="alignSequences()">Align</button>
-    <pre id="result"></pre>
+    <div id="result-container"
+         style="visibility: hidden;">
+        <h3>Alignment Result:</h3>
+        <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span>% identity)</p>
+        <pre id="result"></pre>
+    </div>
 </body>
 </html>

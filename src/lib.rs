@@ -7,6 +7,8 @@ use wasm_bindgen::JsValue;
 pub struct AlignmentResult {
     pub aligned_seq1: String,
     pub aligned_seq2: String,
+    pub aligned_length: usize,
+    pub aligned_identity: f64,
 }
 
 #[wasm_bindgen]
@@ -57,6 +59,8 @@ fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
     let mut j = len2;
     let mut aligned_seq1 = Vec::new();
     let mut aligned_seq2 = Vec::new();
+    let mut aligned_length = 0;
+    let mut aligned_identity = 0.0;
 
     while i > max_pos.0  {
         aligned_seq1.push(seq1[i - 1]);
@@ -81,6 +85,10 @@ fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
             aligned_seq2.push(seq2[j - 1]);
             i -= 1;
             j -= 1;
+            aligned_length += 1;
+            if seq1[i] == seq2[j] {
+                aligned_identity += 1.0;
+            }
         } else if current_score == up_score + gap_penalty {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(b'-');
@@ -111,6 +119,12 @@ fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
     AlignmentResult {
         aligned_seq1: String::from_utf8(aligned_seq1).unwrap(),
         aligned_seq2: String::from_utf8(aligned_seq2).unwrap(),
+        aligned_length,
+        aligned_identity: if aligned_length > 0 {
+            aligned_identity / aligned_length as f64
+        } else {
+            0.0
+        },
     }
 }
 
