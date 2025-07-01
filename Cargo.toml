@@ -1,7 +1,10 @@
 [package]
-name = "bioseq_align"
+name = "web_bio_tools"
 version = "0.1.0"
 edition = "2021"
+description = "Basic bioinformatics tools for the web (WASM-based)"
+repository = "https://github.com/luispedro/web-bio-tools"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
