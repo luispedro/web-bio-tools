@@ -128,3 +128,36 @@ fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn align_identical_sequences() {
+        let r = smith_waterman_internal("GATTACA", "GATTACA");
+        assert_eq!(r.aligned_seq1, "GATTACA");
+        assert_eq!(r.aligned_seq2, "GATTACA");
+        assert_eq!(r.aligned_length, 7);
+        assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn align_acacacta_agcacaca() {
+        let r = smith_waterman_internal("ACACACTA", "AGCACACA");
+        assert_eq!(r.aligned_seq1, "A-CACACTA");
+        assert_eq!(r.aligned_seq2, "AGCACAC-A");
+        assert_eq!(r.aligned_length, 7);
+        assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn align_gattaca_gcatgcu() {
+        let r = smith_waterman_internal("GATTACA", "GCATGCU");
+        assert_eq!(r.aligned_seq1, "G-AT---TACA");
+        assert_eq!(r.aligned_seq2, "GCATGCU----");
+        assert_eq!(r.aligned_length, 3);
+        assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
+    }
+}
+
