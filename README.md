@@ -8,7 +8,8 @@ Live version: [https://web-bio-tools.netlify.app/](https://web-bio-tools.netlify
 ## Local development
 
 For building, you can use `wasm-pack` to compile the Rust code to WebAssembly.
-Make sure you have it installed:
+Make sure you have it installed (you can install it via `cargo install
+wasm-pack`) and then run:
 
 ```bash
 wasm-pack build --target web
