@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Sequence Alignment</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
 
@@ -27,9 +28,19 @@
 
         run();
     </script>
+    <script>
+        $(function() {
+            $('#load-example').on('click', function(e) {
+                e.preventDefault();
+                $('#seq1').val('ATGCGTACGTAGCTAGCTAGCTAGCTAGCGTAGCTAGCTGATCGTAGCTA');
+                $('#seq2').val('ATCCGTACGTAGCTAGGTAGCTAGTTGGCGTAGCTAGCTGATCGTAGCCA');
+            });
+        });
+    </script>
     <h2>Sequence Alignment using Smith-Waterman</h2>
     <textarea id="seq1" placeholder="Enter first sequence"></textarea>
     <textarea id="seq2" placeholder="Enter second sequence"></textarea>
+    <p><a href="#" id="load-example">Load example sequences</a></p>
     <button onclick="alignSequences()">Align</button>
     <div id="result-container"
          style="visibility: hidden;">
