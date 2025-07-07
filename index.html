@@ -98,10 +98,15 @@
     </script>
     <script>
         $(function() {
+            const seq_example1 = ">SHD1_0000\n" +
+                "MKAGHLKDIDKPSEPFEVIGKIIPRYENENWTFTELLYEAPYLKSYQDEEDEEDEEADCLEYIDNTDKIIYLYYQDDKCVGKVKLRKNWNRYAYIEDIAVCKDFRGQGIGSALINISIEWAKHKNLHGLMLETQDNNLIACKFYHNCGFKIGSVDTMLYANFENNFEKAVFWYLRF"
+            const seq_example2 = ">gb|AAB53445.1|+|SAT-4 [Campylobacter coli]\n" +
+                "MITEMKAEHLKDIDKPSEPFEVIGKIIPRYENENWTFTELLYEAPYLKSYQDEEDEEDEEADCLEYIDNTDKIIYLYYQDDKCVGKVKLRKNWNRYAYIEDIAVCKDFRGQGIGSALINISIEWAKHKNLHGLMLETQDNNLIACKFYHNCGFKIGSVDTMLYANFENNFEKAVFWYLRF";
+
             $('#load-example').on('click', function(e) {
                 e.preventDefault();
-                $('#seq1').val('>example1\nATGCGTACGTAGCTAGCTAGCTAGCTATAGCTAGCTGATCGTAGCA');
-                $('#seq2').val('>example2\nATCCGTACGTAGCTAGGTAGCTAGTTGTAGCTAGCTGATCGTAGCCA');
+                $('#seq1').val(seq_example1);
+                $('#seq2').val(seq_example2);
             });
             $('#toggle-advanced').on('click', function(e) {
                 e.preventDefault();
