@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>Sequence Alignment</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
     <style>
         #result-container pre {
             font-family: monospace;
@@ -12,8 +15,6 @@
         .mismatch { color: red; }
         .gap { color: gray; }
     </style>
-</head>
-<body>
 
     <script type="module">
         import init, { smith_waterman_custom } from './pkg/web_bio_tools.js';

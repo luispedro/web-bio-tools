@@ -9,4 +9,5 @@ fi
 wasm-pack build --target web
 mkdir -p dist
 cp -r pkg/ dist/
+cp -r static/ dist/
 cp -r index.html dist/
