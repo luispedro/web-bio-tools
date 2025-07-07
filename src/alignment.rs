@@ -9,14 +9,20 @@ pub struct AlignmentResult {
 }
 
 pub fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
+    smith_waterman_internal_with_params(seq1, seq2, 2, -1, -1)
+}
+
+pub fn smith_waterman_internal_with_params(
+    seq1: &str,
+    seq2: &str,
+    match_score: i32,
+    mismatch_penalty: i32,
+    gap_penalty: i32,
+) -> AlignmentResult {
     let seq1 = seq1.as_bytes();
     let seq2 = seq2.as_bytes();
     let len1 = seq1.len();
     let len2 = seq2.len();
-
-    let match_score = 2;
-    let mismatch_penalty = -1;
-    let gap_penalty = -1;
 
     // Initialize scoring matrix
     let mut score_matrix = vec![vec![0; len2 + 1]; len1 + 1];
