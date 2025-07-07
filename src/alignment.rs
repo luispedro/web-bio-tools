@@ -8,15 +8,18 @@ pub struct AlignmentResult {
     pub aligned_identity: f64,
 }
 
-pub fn smith_waterman_internal(seq1: &str, seq2: &str) -> AlignmentResult {
+pub fn smith_waterman_internal(
+    seq1: &str,
+    seq2: &str,
+    match_score: i32,
+    mismatch_penalty: i32,
+    gap_penalty: i32,
+) -> AlignmentResult {
     let seq1 = seq1.as_bytes();
     let seq2 = seq2.as_bytes();
     let len1 = seq1.len();
     let len2 = seq2.len();
 
-    let match_score = 2;
-    let mismatch_penalty = -1;
-    let gap_penalty = -1;
 
     // Initialize scoring matrix
     let mut score_matrix = vec![vec![0; len2 + 1]; len1 + 1];
@@ -124,7 +127,7 @@ mod tests {
 
     #[test]
     fn align_identical_sequences() {
-        let r = smith_waterman_internal("GATTACA", "GATTACA");
+        let r = smith_waterman_internal("GATTACA", "GATTACA", 2, -1, -1);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -133,7 +136,7 @@ mod tests {
 
     #[test]
     fn align_acacacta_agcacaca() {
-        let r = smith_waterman_internal("ACACACTA", "AGCACACA");
+        let r = smith_waterman_internal("ACACACTA", "AGCACACA", 2, -1, -1);
         assert_eq!(r.aligned_seq1, "A-CACACTA");
         assert_eq!(r.aligned_seq2, "AGCACAC-A");
         assert_eq!(r.aligned_length, 7);
@@ -142,7 +145,7 @@ mod tests {
 
     #[test]
     fn align_gattaca_gcatgcu() {
-        let r = smith_waterman_internal("GATTACA", "GCATGCU");
+        let r = smith_waterman_internal("GATTACA", "GCATGCU", 2, -1, -1);
         assert_eq!(r.aligned_seq1, "G-AT---TACA");
         assert_eq!(r.aligned_seq2, "GCATGCU----");
         assert_eq!(r.aligned_length, 3);

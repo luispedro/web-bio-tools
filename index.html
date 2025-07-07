@@ -16,7 +16,7 @@
 <body>
 
     <script type="module">
-        import init, { smith_waterman } from './pkg/web_bio_tools.js';
+        import init, { smith_waterman_custom } from './pkg/web_bio_tools.js';
 
         async function run() {
             await init();
@@ -39,7 +39,10 @@
             window.alignSequences = () => {
                 const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
-                const result = smith_waterman(parsed1.sequence, parsed2.sequence);
+                const matchScore = parseInt(document.getElementById('match-score').value, 10);
+                const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
+                const gapPenalty = parseInt(document.getElementById('gap-penalty').value, 10);
+                const result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
                 document.getElementById('result-container').style.visibility = 'visible';
 
                 const seq1 = result.aligned_seq1;
@@ -80,6 +83,13 @@
                 $('#seq1').val('>example1\nATGCGTACGTAGCTAGCTAGCTAGCTATAGCTAGCTGATCGTAGCA');
                 $('#seq2').val('>example2\nATCCGTACGTAGCTAGGTAGCTAGTTGTAGCTAGCTGATCGTAGCCA');
             });
+            $('#toggle-advanced').on('click', function(e) {
+                e.preventDefault();
+                $('#advanced-params').toggle();
+                $(this).text(function(_, txt) {
+                    return txt === 'Show advanced parameters' ? 'Hide advanced parameters' : 'Show advanced parameters';
+                });
+            });
         });
     </script>
 
@@ -96,6 +106,12 @@
     <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)" rows=24 cols=48></textarea>
     <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)" rows=24 cols=48></textarea>
     <p><a href="#" id="load-example">Load example sequences</a></p>
+    <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
+    <div id="advanced-params" style="display:none;">
+        <label>Match score: <input type="number" id="match-score" value="2"></label><br>
+        <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
+        <label>Gap penalty: <input type="number" id="gap-penalty" value="-1"></label>
+    </div>
     <button onclick="alignSequences()">Align</button>
     <div id="result-container"
          style="visibility: hidden;">
