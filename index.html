@@ -48,26 +48,45 @@
 
                 const seq1 = result.aligned_seq1;
                 const seq2 = result.aligned_seq2;
+                let final = '';
                 let html1 = '';
+                let htmlm = '';
                 let html2 = '';
+                let m = '';
                 for (let i = 0; i < seq1.length; i++) {
                     const c1 = seq1[i];
                     const c2 = seq2[i];
                     let cls = 'match';
                     if (c1 === '-' || c2 === '-') {
                         cls = 'gap';
+                        m = ' ';
                     } else if (c1 !== c2) {
                         cls = 'mismatch';
+                        m = 'X';
+                    } else {
+                        m = '|';
                     }
                     html1 += `<span class="${cls}">${c1}</span>`;
                     html2 += `<span class="${cls}">${c2}</span>`;
+                    htmlm += m;
+                    if (i % 80 === 79) {
+                        final += html1 + '\n';
+                        final += htmlm + '\n';
+                        final += html2 + '\n';
+                        final += '\n\n';
+                        html1 = '';
+                        htmlm = '';
+                        html2 = '';
+                    }
                 }
 
-                document.getElementById('result').innerHTML =
-                    '&gt;' + parsed1.name + '\n' +
-                    html1 + '\n' +
-                    '&gt;' + parsed2.name + '\n' +
-                    html2;
+                if (html1.length > 0) {
+                    final += html1 + '\n';
+                    final += htmlm + '\n';
+                    final += html2 + '\n';
+                }
+
+                document.getElementById('result').innerHTML = final;
 
                 document.getElementById('alignment-length').textContent = result.aligned_length;
                 document.getElementById('alignment-score').textContent = (100 * result.aligned_identity).toFixed(2) + '%';
