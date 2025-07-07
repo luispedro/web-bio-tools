@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>Sequence Alignment</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
     <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
@@ -118,32 +121,51 @@
         });
     </script>
 
-    <h2>Sequence Alignment using Smith-Waterman</h2>
-    <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)" rows=24 cols=48></textarea>
-    <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)" rows=24 cols=48></textarea>
-    <p><a href="#" id="load-example">Load example sequences</a></p>
-    <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
-    <div id="advanced-params" style="display:none;">
-        <label>Match score: <input type="number" id="match-score" value="2"></label><br>
-        <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
-        <label>Gap penalty: <input type="number" id="gap-penalty" value="-1"></label>
-    </div>
-    <button onclick="alignSequences()">Align</button>
-    <div id="result-container"
-         style="visibility: hidden;">
-        <h3>Alignment Result:</h3>
-        <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span> identity)</p>
-        <pre id="result"></pre>
-    </div>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2">
+            <nav id="leftbar">
+                <div>
+                    <h6>Links</h6>
+                    <ul>
+                        <li><a href="https://github.com/luispedro/web-bio-tools">GitHub repository</a></li>
+                        <li><a href="https://luispedro.org">Luis Pedro Coelho's homepage</a></li>
+                        <li><a href="https://big-data-biology.org/">Big Data Biology Lab</a></li>
+                    </ul>
+                    </div>
+                </nav>
+            </div>
+            <div class="col">
+                <h1>Web Bio Tools</h1>
+                <h2>Sequence Alignment using Smith-Waterman</h2>
+                <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)" rows=24 cols=48></textarea>
+                <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)" rows=24 cols=48></textarea>
+                <p><a href="#" id="load-example">Load example sequences</a></p>
+                <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
+                <div id="advanced-params" style="display:none;">
+                    <label>Match score: <input type="number" id="match-score" value="2"></label><br>
+                    <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
+                    <label>Gap penalty: <input type="number" id="gap-penalty" value="-1"></label>
+                </div>
+                <button onclick="alignSequences()">Align</button>
+                <div id="result-container"
+                     style="visibility: hidden;">
+                    <h3>Alignment Result:</h3>
+                    <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span> identity)</p>
+                    <pre id="result"></pre>
+                </div>
 
-    <p>
-        This site provides simple bioinformatics tools compiled to WebAssembly
-        with Rust. The current tool performs Smith-Waterman local sequence
-        alignment directly in your browser.
-    </p>
-    <p>
-        Source code available on <a href="https://github.com/luispedro/web-bio-tools">GitHub</a>.<br>
-        Author: <a href="https://luispedro.org">Luis Pedro Coelho</a>
-    </p>
+                <p>
+                    This site provides simple bioinformatics tools compiled to WebAssembly
+                    with Rust. The current tool performs Smith-Waterman local sequence
+                    alignment directly in your browser.
+                </p>
+                <p>
+                    Source code available on <a href="https://github.com/luispedro/web-bio-tools">GitHub</a>.<br>
+                    Author: <a href="https://luispedro.org">Luis Pedro Coelho</a>
+                </p>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
