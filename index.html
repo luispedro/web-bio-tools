@@ -12,13 +12,31 @@
 
         async function run() {
             await init();
+
+            function parseFasta(text, defaultName) {
+                const lines = text.trim().split(/\r?\n/).filter(l => l.trim() !== '');
+                if (lines.length === 0) {
+                    return { name: defaultName, sequence: '' };
+                }
+                if (lines[0].startsWith('>')) {
+                    const name = lines[0].substring(1).trim() || defaultName;
+                    const seq = lines.slice(1).join('').replace(/\s+/g, '');
+                    return { name, sequence: seq };
+                } else {
+                    const seq = lines.join('').replace(/\s+/g, '');
+                    return { name: defaultName, sequence: seq };
+                }
+            }
+
             window.alignSequences = () => {
-                const seq1 = document.getElementById('seq1').value;
-                const seq2 = document.getElementById('seq2').value;
-                const result = smith_waterman(seq1, seq2);
+                const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
+                const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
+                const result = smith_waterman(parsed1.sequence, parsed2.sequence);
                 document.getElementById('result-container').style.visibility = 'visible';
                 document.getElementById('result').textContent =
+                    '>' + parsed1.name + '\n' +
                     result.aligned_seq1 + '\n' +
+                    '>' + parsed2.name + '\n' +
                     result.aligned_seq2;
                 document.getElementById('alignment-length').textContent = result.aligned_length;
                 document.getElementById('alignment-score').textContent = (100*result.aligned_identity).toFixed(2) + '%';
@@ -32,14 +50,14 @@
         $(function() {
             $('#load-example').on('click', function(e) {
                 e.preventDefault();
-                $('#seq1').val('ATGCGTACGTAGCTAGCTAGCTAGCTAGCGTAGCTAGCTGATCGTAGCTA');
-                $('#seq2').val('ATCCGTACGTAGCTAGGTAGCTAGTTGGCGTAGCTAGCTGATCGTAGCCA');
+                $('#seq1').val('>example1\nATGCGTACGTAGCTAGCTAGCTAGCTAGCGTAGCTAGCTGATCGTAGCTA');
+                $('#seq2').val('>example2\nATCCGTACGTAGCTAGGTAGCTAGTTGGCGTAGCTAGCTGATCGTAGCCA');
             });
         });
     </script>
     <h2>Sequence Alignment using Smith-Waterman</h2>
-    <textarea id="seq1" placeholder="Enter first sequence"></textarea>
-    <textarea id="seq2" placeholder="Enter second sequence"></textarea>
+    <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)"></textarea>
+    <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)"></textarea>
     <p><a href="#" id="load-example">Load example sequences</a></p>
     <button onclick="alignSequences()">Align</button>
     <div id="result-container"
