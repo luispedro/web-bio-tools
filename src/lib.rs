@@ -28,3 +28,9 @@ pub fn smith_waterman_custom(
     );
     to_value(&result).unwrap()
 }
+
+#[wasm_bindgen]
+pub fn smith_waterman_blosum62(seq1: &str, seq2: &str, gap_penalty: i32) -> JsValue {
+    let result = alignment::smith_waterman_blosum62_internal(seq1, seq2, gap_penalty);
+    to_value(&result).unwrap()
+}
