@@ -20,7 +20,7 @@
     </style>
 
     <script type="module">
-        import init, { smith_waterman_custom } from './pkg/web_bio_tools.js';
+        import init, { smith_waterman_custom, smith_waterman_blosum62 } from './pkg/web_bio_tools.js';
 
         async function run() {
             await init();
@@ -43,10 +43,16 @@
             window.alignSequences = () => {
                 const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
-                const matchScore = parseInt(document.getElementById('match-score').value, 10);
-                const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
                 const gapPenalty = parseInt(document.getElementById('gap-penalty').value, 10);
-                const result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
+                const weightOption = document.getElementById('weight-option').value;
+                let result;
+                if (weightOption === 'blosum62') {
+                    result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapPenalty);
+                } else {
+                    const matchScore = parseInt(document.getElementById('match-score').value, 10);
+                    const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
+                    result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
+                }
                 document.getElementById('result-container').style.visibility = 'visible';
 
                 const seq1 = result.aligned_seq1;
@@ -143,6 +149,12 @@
                 <p><a href="#" id="load-example">Load example sequences</a></p>
                 <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
                 <div id="advanced-params" style="display:none;">
+                    <label>Scoring matrix:
+                        <select id="weight-option">
+                            <option value="uniform" selected>Uniform</option>
+                            <option value="blosum62">BLOSUM62</option>
+                        </select>
+                    </label><br>
                     <label>Match score: <input type="number" id="match-score" value="2"></label><br>
                     <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
                     <label>Gap penalty: <input type="number" id="gap-penalty" value="-1"></label>
