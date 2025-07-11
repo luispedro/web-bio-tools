@@ -20,7 +20,7 @@
     </style>
 
     <script type="module">
-        import init, { smith_waterman_custom, smith_waterman_blosum62 } from './pkg/web_bio_tools.js';
+        import init, { smith_waterman_custom, smith_waterman_blosum62, needleman_wunsch_custom, needleman_wunsch_blosum62 } from './pkg/web_bio_tools.js';
 
         async function run() {
             await init();
@@ -45,13 +45,24 @@
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
                 const gapPenalty = parseInt(document.getElementById('gap-penalty').value, 10);
                 const weightOption = document.getElementById('weight-option').value;
+                const algorithm = document.getElementById('algorithm').value;
                 let result;
-                if (weightOption === 'blosum62') {
-                    result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapPenalty);
+                if (algorithm === 'nw') {
+                    if (weightOption === 'blosum62') {
+                        result = needleman_wunsch_blosum62(parsed1.sequence, parsed2.sequence, gapPenalty);
+                    } else {
+                        const matchScore = parseInt(document.getElementById('match-score').value, 10);
+                        const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
+                        result = needleman_wunsch_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
+                    }
                 } else {
-                    const matchScore = parseInt(document.getElementById('match-score').value, 10);
-                    const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
-                    result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
+                    if (weightOption === 'blosum62') {
+                        result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapPenalty);
+                    } else {
+                        const matchScore = parseInt(document.getElementById('match-score').value, 10);
+                        const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
+                        result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
+                    }
                 }
                 document.getElementById('result-container').style.visibility = 'visible';
 
@@ -143,12 +154,18 @@
             </div>
             <div class="col">
                 <h1>Web Bio Tools</h1>
-                <h2>Sequence Alignment using Smith-Waterman</h2>
+                <h2>Sequence Alignment</h2>
                 <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)" rows=24 cols=48></textarea>
                 <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)" rows=24 cols=48></textarea>
                 <p><a href="#" id="load-example">Load example sequences</a></p>
                 <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
                 <div id="advanced-params" style="display:none;">
+                    <label>Algorithm:
+                        <select id="algorithm">
+                            <option value="sw" selected>Smith-Waterman (local)</option>
+                            <option value="nw">Needleman-Wunsch (global)</option>
+                        </select>
+                    </label><br>
                     <label>Scoring matrix:
                         <select id="weight-option">
                             <option value="uniform" selected>Uniform</option>
@@ -169,8 +186,8 @@
 
                 <p>
                     This site provides simple bioinformatics tools compiled to WebAssembly
-                    with Rust. The current tool performs Smith-Waterman local sequence
-                    alignment directly in your browser.
+                    with Rust. It can perform local or global sequence alignment
+                    directly in your browser.
                 </p>
                 <p>
                     Source code available on <a href="https://github.com/luispedro/web-bio-tools">GitHub</a>.<br>
