@@ -62,6 +62,7 @@ pub struct AlignmentResult {
     pub aligned_seq2: String,
     pub aligned_length: usize,
     pub aligned_identity: f64,
+    pub score: f64,
     pub alignment_markup: String,
 }
 
@@ -194,6 +195,7 @@ where
         } else {
             0.0
         },
+        score: max_score,
         alignment_markup: markup,
     }
 }
@@ -338,6 +340,7 @@ where
         } else {
             0.0
         },
+        score: score_matrix[len1][len2],
         alignment_markup: markup,
     }
 }
