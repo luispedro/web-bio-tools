@@ -142,6 +142,13 @@
                     return txt === 'Show advanced parameters' ? 'Hide advanced parameters' : 'Show advanced parameters';
                 });
             });
+            $('#weight-option').on('change', function() {
+                if (this.value === 'uniform') {
+                    $('#uniform-params').addClass('show');
+                } else {
+                    $('#uniform-params').removeClass('show');
+                }
+            }).trigger('change');
         });
     </script>
 
@@ -175,12 +182,14 @@
                     </label><br>
                     <label>Scoring matrix:
                         <select id="weight-option">
-                            <option value="uniform" selected>Uniform</option>
-                            <option value="blosum62">BLOSUM62</option>
+                            <option value="uniform">Uniform</option>
+                            <option value="blosum62" selected>BLOSUM62</option>
                         </select>
                     </label><br>
-                    <label>Match score: <input type="number" id="match-score" value="2"></label><br>
-                    <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
+                    <div id="uniform-params">
+                        <label>Match score: <input type="number" id="match-score" value="2"></label><br>
+                        <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
+                    </div>
                     <label>Gap open penalty: <input type="number" id="gap-open" value="-1"></label><br>
                     <label>Gap extend penalty: <input type="number" id="gap-extend" value="-1"></label>
                 </div>
