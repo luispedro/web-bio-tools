@@ -49,10 +49,10 @@ fn aa_index(b: u8) -> Option<usize> {
     }
 }
 
-fn blosum62_score(a: u8, b: u8) -> i32 {
+fn blosum62_score(a: u8, b: u8) -> f64 {
     match (aa_index(a), aa_index(b)) {
-        (Some(i), Some(j)) => BLOSUM62_MATRIX[i][j],
-        _ => -4,
+        (Some(i), Some(j)) => BLOSUM62_MATRIX[i][j] as f64,
+        _ => -4.0,
     }
 }
 
@@ -68,23 +68,23 @@ pub struct AlignmentResult {
 pub fn smith_waterman_with_matrix<F>(
     seq1: &str,
     seq2: &str,
-    gap_open: i32,
-    gap_extend: i32,
+    gap_open: f64,
+    gap_extend: f64,
     score_fn: F,
 ) -> AlignmentResult
 where
-    F: Fn(u8, u8) -> i32,
+    F: Fn(u8, u8) -> f64,
 {
     let seq1 = seq1.as_bytes();
     let seq2 = seq2.as_bytes();
     let len1 = seq1.len();
     let len2 = seq2.len();
 
-    let mut score_matrix = vec![vec![0; len2 + 1]; len1 + 1];
-    let mut ins_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
-    let mut del_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
+    let mut score_matrix = vec![vec![0.0; len2 + 1]; len1 + 1];
+    let mut ins_matrix = vec![vec![f64::NEG_INFINITY; len2 + 1]; len1 + 1];
+    let mut del_matrix = vec![vec![f64::NEG_INFINITY; len2 + 1]; len1 + 1];
 
-    let mut max_score = 0;
+    let mut max_score = 0.0;
     let mut max_pos = (0, 0);
 
     for i in 1..=len1 {
@@ -100,7 +100,7 @@ where
             let cell_score = diagonal_score
                 .max(ins_matrix[i][j])
                 .max(del_matrix[i][j])
-                .max(0);
+                .max(0.0);
             score_matrix[i][j] = cell_score;
 
             if cell_score > max_score {
@@ -129,13 +129,14 @@ where
         j -= 1;
     }
 
-    while i > 0 && j > 0 && score_matrix[i][j] > 0 {
+    while i > 0 && j > 0 && score_matrix[i][j] > 0.0 {
         let current_score = score_matrix[i][j];
         let diagonal_score = score_matrix[i - 1][j - 1];
         let up_score = ins_matrix[i][j];
         let left_score = del_matrix[i][j];
 
-        if current_score == diagonal_score + score_fn(seq1[i - 1], seq2[j - 1]) {
+        let diag = diagonal_score + score_fn(seq1[i - 1], seq2[j - 1]);
+        if (current_score - diag).abs() < 1e-6 {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(seq2[j - 1]);
             i -= 1;
@@ -144,11 +145,11 @@ where
             if seq1[i].to_ascii_uppercase() == seq2[j].to_ascii_uppercase() {
                 aligned_identity += 1.0;
             }
-        } else if current_score == up_score {
+        } else if (current_score - up_score).abs() < 1e-6 {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(b'-');
             i -= 1;
-        } else if current_score == left_score {
+        } else if (current_score - left_score).abs() < 1e-6 {
             aligned_seq1.push(b'-');
             aligned_seq2.push(seq2[j - 1]);
             j -= 1;
@@ -176,7 +177,7 @@ where
             '|'
         } else if a == b'-' || b == b'-' {
             ' '
-        } else if score_fn(a, b) > 0 {
+        } else if score_fn(a, b) > 0.0 {
             ':'
         } else {
             '.'
@@ -200,19 +201,21 @@ where
 pub fn smith_waterman_blosum62_internal(
     seq1: &str,
     seq2: &str,
-    gap_open: i32,
-    gap_extend: i32,
+    gap_open: f64,
+    gap_extend: f64,
 ) -> AlignmentResult {
-    smith_waterman_with_matrix(seq1, seq2, gap_open, gap_extend, blosum62_score)
+    smith_waterman_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
+        blosum62_score(a, b) as f64
+    })
 }
 
 pub fn smith_waterman_internal(
     seq1: &str,
     seq2: &str,
-    match_score: i32,
-    mismatch_penalty: i32,
-    gap_open: i32,
-    gap_extend: i32,
+    match_score: f64,
+    mismatch_penalty: f64,
+    gap_open: f64,
+    gap_extend: f64,
 ) -> AlignmentResult {
     smith_waterman_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
         if a.to_ascii_uppercase() == b.to_ascii_uppercase() {
@@ -226,21 +229,21 @@ pub fn smith_waterman_internal(
 pub fn needleman_wunsch_with_matrix<F>(
     seq1: &str,
     seq2: &str,
-    gap_open: i32,
-    gap_extend: i32,
+    gap_open: f64,
+    gap_extend: f64,
     score_fn: F,
 ) -> AlignmentResult
 where
-    F: Fn(u8, u8) -> i32,
+    F: Fn(u8, u8) -> f64,
 {
     let seq1 = seq1.as_bytes();
     let seq2 = seq2.as_bytes();
     let len1 = seq1.len();
     let len2 = seq2.len();
 
-    let mut score_matrix = vec![vec![0; len2 + 1]; len1 + 1];
-    let mut ins_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
-    let mut del_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
+    let mut score_matrix = vec![vec![0.0; len2 + 1]; len1 + 1];
+    let mut ins_matrix = vec![vec![f64::NEG_INFINITY; len2 + 1]; len1 + 1];
+    let mut del_matrix = vec![vec![f64::NEG_INFINITY; len2 + 1]; len1 + 1];
 
     for i in 1..=len1 {
         ins_matrix[i][0] = if i == 1 {
@@ -283,7 +286,10 @@ where
     while i > 0 || j > 0 {
         if i > 0
             && j > 0
-            && score_matrix[i][j] == score_matrix[i - 1][j - 1] + score_fn(seq1[i - 1], seq2[j - 1])
+            && (score_matrix[i][j]
+                - (score_matrix[i - 1][j - 1] + score_fn(seq1[i - 1], seq2[j - 1])))
+                .abs()
+                < 1e-6
         {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(seq2[j - 1]);
@@ -293,11 +299,11 @@ where
             aligned_length += 1;
             i -= 1;
             j -= 1;
-        } else if i > 0 && score_matrix[i][j] == ins_matrix[i][j] {
+        } else if i > 0 && (score_matrix[i][j] - ins_matrix[i][j]).abs() < 1e-6 {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(b'-');
             i -= 1;
-        } else if j > 0 && score_matrix[i][j] == del_matrix[i][j] {
+        } else if j > 0 && (score_matrix[i][j] - del_matrix[i][j]).abs() < 1e-6 {
             aligned_seq1.push(b'-');
             aligned_seq2.push(seq2[j - 1]);
             j -= 1;
@@ -315,7 +321,7 @@ where
             '|'
         } else if a == b'-' || b == b'-' {
             ' '
-        } else if score_fn(a, b) > 0 {
+        } else if score_fn(a, b) > 0.0 {
             ':'
         } else {
             '.'
@@ -339,19 +345,21 @@ where
 pub fn needleman_wunsch_blosum62_internal(
     seq1: &str,
     seq2: &str,
-    gap_open: i32,
-    gap_extend: i32,
+    gap_open: f64,
+    gap_extend: f64,
 ) -> AlignmentResult {
-    needleman_wunsch_with_matrix(seq1, seq2, gap_open, gap_extend, blosum62_score)
+    needleman_wunsch_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
+        blosum62_score(a, b) as f64
+    })
 }
 
 pub fn needleman_wunsch_internal(
     seq1: &str,
     seq2: &str,
-    match_score: i32,
-    mismatch_penalty: i32,
-    gap_open: i32,
-    gap_extend: i32,
+    match_score: f64,
+    mismatch_penalty: f64,
+    gap_open: f64,
+    gap_extend: f64,
 ) -> AlignmentResult {
     needleman_wunsch_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
         if a.to_ascii_uppercase() == b.to_ascii_uppercase() {
@@ -368,7 +376,7 @@ mod tests {
 
     #[test]
     fn align_identical_sequences() {
-        let r = smith_waterman_internal("GATTACA", "GATTACA", 2, -1, -1, -1);
+        let r = smith_waterman_internal("GATTACA", "GATTACA", 2.0, -1.0, -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -378,7 +386,7 @@ mod tests {
 
     #[test]
     fn align_acacacta_agcacaca() {
-        let r = smith_waterman_internal("ACACACTA", "AGCACACA", 2, -1, -1, -1);
+        let r = smith_waterman_internal("ACACACTA", "AGCACACA", 2.0, -1.0, -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "A-CACACTA");
         assert_eq!(r.aligned_seq2, "AGCACAC-A");
         assert_eq!(r.aligned_length, 7);
@@ -387,7 +395,7 @@ mod tests {
 
     #[test]
     fn align_gattaca_gcatgcu() {
-        let r = smith_waterman_internal("GATTACA", "GCATGCU", 2, -1, -1, -1);
+        let r = smith_waterman_internal("GATTACA", "GCATGCU", 2.0, -1.0, -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "G-AT---TACA");
         assert_eq!(r.aligned_seq2, "GCATGCU----");
         assert_eq!(r.aligned_length, 3);
@@ -396,7 +404,7 @@ mod tests {
 
     #[test]
     fn blosum62_identical_sequences() {
-        let r = smith_waterman_blosum62_internal("GATTACA", "GATTACA", -1, -1);
+        let r = smith_waterman_blosum62_internal("GATTACA", "GATTACA", -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -405,7 +413,7 @@ mod tests {
 
     #[test]
     fn smith_waterman_case_insensitive() {
-        let r = smith_waterman_internal("gAttAcA", "GATTACA", 2, -1, -1, -1);
+        let r = smith_waterman_internal("gAttAcA", "GATTACA", 2.0, -1.0, -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "gAttAcA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -415,7 +423,7 @@ mod tests {
 
     #[test]
     fn nw_identical_sequences() {
-        let r = needleman_wunsch_internal("GATTACA", "GATTACA", 2, -1, -1, -1);
+        let r = needleman_wunsch_internal("GATTACA", "GATTACA", 2.0, -1.0, -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -424,7 +432,7 @@ mod tests {
 
     #[test]
     fn needleman_wunsch_case_insensitive() {
-        let r = needleman_wunsch_internal("GATTACA", "gattaca", 2, -1, -1, -1);
+        let r = needleman_wunsch_internal("GATTACA", "gattaca", 2.0, -1.0, -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "gattaca");
         assert_eq!(r.aligned_length, 7);
@@ -434,7 +442,7 @@ mod tests {
 
     #[test]
     fn nw_blosum62_identical_sequences() {
-        let r = needleman_wunsch_blosum62_internal("GATTACA", "GATTACA", -1, -1);
+        let r = needleman_wunsch_blosum62_internal("GATTACA", "GATTACA", -1.0, -0.5);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
