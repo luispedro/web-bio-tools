@@ -126,6 +126,7 @@
 
                 document.getElementById('alignment-length').textContent = result.aligned_length;
                 document.getElementById('alignment-score').textContent = (100 * result.aligned_identity).toFixed(2) + '%';
+                document.getElementById('alignment-raw-score').textContent = result.score.toFixed(2);
             };
 
         }
@@ -233,7 +234,7 @@
                 <div id="result-container"
                      style="visibility: hidden;">
                     <h3>Alignment Result:</h3>
-                    <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span> identity)</p>
+                    <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span> identity, score <span id="alignment-raw-score"></span>)</p>
                     <pre id="result"></pre>
                 </div>
 
