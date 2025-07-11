@@ -139,6 +139,12 @@
             const seq_example_similar_2 = ">gb|AAB53445.1|+|SAT-4 [Campylobacter coli]\n" +
                 "MITEMKAEHLKDIDKPSEPFEVIGKIIPRYENENWTFTELLYEAPYLKSYQDEEDEEDEEADCLEYIDNTDKIIYLYYQDDKCVGKVKLRKNWNRYAYIEDIAVCKDFRGQGIGSALINISIEWAKHKNLHGLMLETQDNNLIACKFYHNCGFKIGSVDTMLYANFENNFEKAVFWYLRF";
 
+            const example_intermediate_1 = ">dldHA2X_1_AL939117_partial\n" +
+                "MTFSSTSSAPPPSPLLPATRITVYGCGRDEAALFRRTAPRFGVEATLTEAAVSEENAEMAAGNQCISIDHKTPVTPATLRALHRAGVTYISTRSIGYNHIDVTYAAGVGISVENVTYSPAGVADYTLMLMLMAVRNAKSTVRRAELHDYRLNEIRGKELRDLTVGVIGTGRIGAAVVDRLRGFGSRVLAYGKRPTIAADYVSLDELLRSSDIVSLHVPLTPDTHHLLDQSRIRRMKSGAFVINTGRGPLIDTEALVPALESGRLSGAALDVIEGEEGIFYADCRNRTIESTWLPRLQKMPNVLISPHTAYYTDHALMDTVENSIINCLNFGSRKQHGVGQVGQVEGRHRIRGLFRRTRRFRQVRPGGRTQPRHREVPAVLRGDHEGRRLETLRRARPGLGERRLPS";
+
+            const example_intermediate_2 = ">gnl|BL_ORD_ID|759|hsp_num:0\n" +
+                "MSYRDLGLIDSEVIAERRVRALDDSSPSAVPTTGVRVFGCGHDEAVLFREMGTRLGITPSITEEAISETNAELARGNRCISVSHKTQIDNSTLLALSRVGVEYISTRSVGYNHIDVEFAASIGISVGNVDYSPDSVGDYTLMLMLMTVRHAKSIVRRADTHDYRLNDTRGRELRDLTVGVIGTGRIGTAVIDRLQGFGCRVLAHDSGPHASADYVPLDELLRQSDIVTLHTPLTADTHHLLDRQRIDQMKHGAYIVNTGRGPLLDTEALLSALESGRLGGAALDVVEGEEGIFYADCRNRLIENKALVRLQRLPNVLISPHSAYYTDHALNDTVENSLVNCLNFESGRTA";
+
             const seq_example_different_1 = ">ERMA_STAAU\n" +
                 "MNQKNPKDTQNFITSKKHVKEILNHTNISKQDNVIEIGSGKGHFTKELVKMSRSVTAIEIDGGLCQVTKEAVNPSENIKVIQTDILKFSFPKHINYKIYGNIPYNISTDIVKRITFESQAKYSYLIVEKGFAKRLQNLQRALGLLLMVEMDIKMLKKVPPLYFHPKPSVDSVLIVLERHQPLISKKDYKKYRSFVYKWVNREYRVLFTKNQFRQALKHANVTNINKLSKEQFLSIFNSYKLFH";
             const seq_example_different_2 = ">ERMA_AERER\n" +
@@ -148,6 +154,11 @@
                 e.preventDefault();
                 $('#seq1').val(seq_example_similar_1);
                 $('#seq2').val(seq_example_similar_2);
+            });
+            $('#load-example-intermediate').on('click', function(e) {
+                e.preventDefault();
+                $('#seq1').val(example_intermediate_1);
+                $('#seq2').val(example_intermediate_2);
             });
             $('#load-example-different').on('click', function(e) {
                 e.preventDefault();
@@ -188,11 +199,12 @@
             <div class="col">
                 <h1>Web Bio Tools</h1>
                 <h2>Sequence Alignment</h2>
-                <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)" rows=24 cols=48></textarea>
-                <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)" rows=24 cols=48></textarea>
+                <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)" rows=20 cols=40></textarea>
+                <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)" rows=20 cols=40></textarea>
                 <p>
                     Load example sequences:
-                    <a href="#" id="load-example-similar">similar sequences</a> |
+                    <a href="#" id="load-example-similar">very similar sequences</a> |
+                    <a href="#" id="load-example-intermediate">somewhat divergent sequences</a> |
                     <a href="#" id="load-example-different">very different sequences</a>
                 </p>
                 <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
