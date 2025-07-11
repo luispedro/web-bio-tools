@@ -41,13 +41,12 @@
                 }
             }
 
-            window.alignSequences = () => {
+            window.alignSequences = (algorithm) => {
                 const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
                 const gapOpen = parseInt(document.getElementById('gap-open').value, 10);
                 const gapExtend = parseInt(document.getElementById('gap-extend').value, 10);
                 const weightOption = document.getElementById('weight-option').value;
-                const algorithm = document.getElementById('algorithm').value;
                 let result;
                 if (algorithm === 'nw') {
                     if (weightOption === 'blosum62') {
@@ -188,12 +187,6 @@
                 </p>
                 <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
                 <div id="advanced-params" style="display:none;">
-                    <label>Algorithm:
-                        <select id="algorithm">
-                            <option value="sw" selected>Smith-Waterman (local)</option>
-                            <option value="nw">Needleman-Wunsch (global)</option>
-                        </select>
-                    </label><br>
                     <label>Scoring matrix:
                         <select id="weight-option">
                             <option value="uniform">Uniform</option>
@@ -207,7 +200,10 @@
                     <label>Gap open penalty: <input type="number" id="gap-open" value="-1"></label><br>
                     <label>Gap extend penalty: <input type="number" id="gap-extend" value="-1"></label>
                 </div>
-                <button onclick="alignSequences()">Align</button>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-primary" onclick="alignSequences('sw')">Local Align</button>
+                    <button class="btn btn-secondary" onclick="alignSequences('nw')">Global Align</button>
+                </div>
                 <div id="result-container"
                      style="visibility: hidden;">
                     <h3>Alignment Result:</h3>
