@@ -44,25 +44,26 @@
             window.alignSequences = () => {
                 const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
-                const gapPenalty = parseInt(document.getElementById('gap-penalty').value, 10);
+                const gapOpen = parseInt(document.getElementById('gap-open').value, 10);
+                const gapExtend = parseInt(document.getElementById('gap-extend').value, 10);
                 const weightOption = document.getElementById('weight-option').value;
                 const algorithm = document.getElementById('algorithm').value;
                 let result;
                 if (algorithm === 'nw') {
                     if (weightOption === 'blosum62') {
-                        result = needleman_wunsch_blosum62(parsed1.sequence, parsed2.sequence, gapPenalty);
+                        result = needleman_wunsch_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
                     } else {
                         const matchScore = parseInt(document.getElementById('match-score').value, 10);
                         const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
-                        result = needleman_wunsch_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
+                        result = needleman_wunsch_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
                     }
                 } else {
                     if (weightOption === 'blosum62') {
-                        result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapPenalty);
+                        result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
                     } else {
                         const matchScore = parseInt(document.getElementById('match-score').value, 10);
                         const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
-                        result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapPenalty);
+                        result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
                     }
                 }
                 document.getElementById('result-container').style.visibility = 'visible';
@@ -180,7 +181,8 @@
                     </label><br>
                     <label>Match score: <input type="number" id="match-score" value="2"></label><br>
                     <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
-                    <label>Gap penalty: <input type="number" id="gap-penalty" value="-1"></label>
+                    <label>Gap open penalty: <input type="number" id="gap-open" value="-1"></label><br>
+                    <label>Gap extend penalty: <input type="number" id="gap-extend" value="-1"></label>
                 </div>
                 <button onclick="alignSequences()">Align</button>
                 <div id="result-container"

@@ -68,7 +68,8 @@ pub struct AlignmentResult {
 pub fn smith_waterman_with_matrix<F>(
     seq1: &str,
     seq2: &str,
-    gap_penalty: i32,
+    gap_open: i32,
+    gap_extend: i32,
     score_fn: F,
 ) -> AlignmentResult
 where
@@ -80,6 +81,8 @@ where
     let len2 = seq2.len();
 
     let mut score_matrix = vec![vec![0; len2 + 1]; len1 + 1];
+    let mut ins_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
+    let mut del_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
 
     let mut max_score = 0;
     let mut max_pos = (0, 0);
@@ -88,9 +91,16 @@ where
         for j in 1..=len2 {
             let match_mismatch = score_fn(seq1[i - 1], seq2[j - 1]);
             let diagonal_score = score_matrix[i - 1][j - 1] + match_mismatch;
-            let up_score = score_matrix[i - 1][j] + gap_penalty;
-            let left_score = score_matrix[i][j - 1] + gap_penalty;
-            let cell_score = diagonal_score.max(up_score).max(left_score).max(0);
+
+            ins_matrix[i][j] =
+                (score_matrix[i - 1][j] + gap_open).max(ins_matrix[i - 1][j] + gap_extend);
+            del_matrix[i][j] =
+                (score_matrix[i][j - 1] + gap_open).max(del_matrix[i][j - 1] + gap_extend);
+
+            let cell_score = diagonal_score
+                .max(ins_matrix[i][j])
+                .max(del_matrix[i][j])
+                .max(0);
             score_matrix[i][j] = cell_score;
 
             if cell_score > max_score {
@@ -122,8 +132,8 @@ where
     while i > 0 && j > 0 && score_matrix[i][j] > 0 {
         let current_score = score_matrix[i][j];
         let diagonal_score = score_matrix[i - 1][j - 1];
-        let up_score = score_matrix[i - 1][j];
-        let left_score = score_matrix[i][j - 1];
+        let up_score = ins_matrix[i][j];
+        let left_score = del_matrix[i][j];
 
         if current_score == diagonal_score + score_fn(seq1[i - 1], seq2[j - 1]) {
             aligned_seq1.push(seq1[i - 1]);
@@ -134,11 +144,11 @@ where
             if seq1[i] == seq2[j] {
                 aligned_identity += 1.0;
             }
-        } else if current_score == up_score + gap_penalty {
+        } else if current_score == up_score {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(b'-');
             i -= 1;
-        } else if current_score == left_score + gap_penalty {
+        } else if current_score == left_score {
             aligned_seq1.push(b'-');
             aligned_seq2.push(seq2[j - 1]);
             j -= 1;
@@ -190,9 +200,10 @@ where
 pub fn smith_waterman_blosum62_internal(
     seq1: &str,
     seq2: &str,
-    gap_penalty: i32,
+    gap_open: i32,
+    gap_extend: i32,
 ) -> AlignmentResult {
-    smith_waterman_with_matrix(seq1, seq2, gap_penalty, blosum62_score)
+    smith_waterman_with_matrix(seq1, seq2, gap_open, gap_extend, blosum62_score)
 }
 
 pub fn smith_waterman_internal(
@@ -200,17 +211,23 @@ pub fn smith_waterman_internal(
     seq2: &str,
     match_score: i32,
     mismatch_penalty: i32,
-    gap_penalty: i32,
+    gap_open: i32,
+    gap_extend: i32,
 ) -> AlignmentResult {
-    smith_waterman_with_matrix(seq1, seq2, gap_penalty, |a, b| {
-        if a == b { match_score } else { mismatch_penalty }
+    smith_waterman_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
+        if a == b {
+            match_score
+        } else {
+            mismatch_penalty
+        }
     })
 }
 
 pub fn needleman_wunsch_with_matrix<F>(
     seq1: &str,
     seq2: &str,
-    gap_penalty: i32,
+    gap_open: i32,
+    gap_extend: i32,
     score_fn: F,
 ) -> AlignmentResult
 where
@@ -222,21 +239,37 @@ where
     let len2 = seq2.len();
 
     let mut score_matrix = vec![vec![0; len2 + 1]; len1 + 1];
+    let mut ins_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
+    let mut del_matrix = vec![vec![i32::MIN / 2; len2 + 1]; len1 + 1];
 
     for i in 1..=len1 {
-        score_matrix[i][0] = score_matrix[i - 1][0] + gap_penalty;
+        ins_matrix[i][0] = if i == 1 {
+            score_matrix[i - 1][0] + gap_open
+        } else {
+            ins_matrix[i - 1][0] + gap_extend
+        };
+        score_matrix[i][0] = ins_matrix[i][0];
     }
     for j in 1..=len2 {
-        score_matrix[0][j] = score_matrix[0][j - 1] + gap_penalty;
+        del_matrix[0][j] = if j == 1 {
+            score_matrix[0][j - 1] + gap_open
+        } else {
+            del_matrix[0][j - 1] + gap_extend
+        };
+        score_matrix[0][j] = del_matrix[0][j];
     }
 
     for i in 1..=len1 {
         for j in 1..=len2 {
             let match_mismatch = score_fn(seq1[i - 1], seq2[j - 1]);
             let diagonal_score = score_matrix[i - 1][j - 1] + match_mismatch;
-            let up_score = score_matrix[i - 1][j] + gap_penalty;
-            let left_score = score_matrix[i][j - 1] + gap_penalty;
-            score_matrix[i][j] = diagonal_score.max(up_score).max(left_score);
+
+            ins_matrix[i][j] =
+                (score_matrix[i - 1][j] + gap_open).max(ins_matrix[i - 1][j] + gap_extend);
+            del_matrix[i][j] =
+                (score_matrix[i][j - 1] + gap_open).max(del_matrix[i][j - 1] + gap_extend);
+
+            score_matrix[i][j] = diagonal_score.max(ins_matrix[i][j]).max(del_matrix[i][j]);
         }
     }
 
@@ -250,8 +283,7 @@ where
     while i > 0 || j > 0 {
         if i > 0
             && j > 0
-            && score_matrix[i][j]
-                == score_matrix[i - 1][j - 1] + score_fn(seq1[i - 1], seq2[j - 1])
+            && score_matrix[i][j] == score_matrix[i - 1][j - 1] + score_fn(seq1[i - 1], seq2[j - 1])
         {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(seq2[j - 1]);
@@ -261,14 +293,16 @@ where
             aligned_length += 1;
             i -= 1;
             j -= 1;
-        } else if i > 0 && score_matrix[i][j] == score_matrix[i - 1][j] + gap_penalty {
+        } else if i > 0 && score_matrix[i][j] == ins_matrix[i][j] {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(b'-');
             i -= 1;
-        } else {
+        } else if j > 0 && score_matrix[i][j] == del_matrix[i][j] {
             aligned_seq1.push(b'-');
             aligned_seq2.push(seq2[j - 1]);
             j -= 1;
+        } else {
+            break;
         }
     }
 
@@ -305,9 +339,10 @@ where
 pub fn needleman_wunsch_blosum62_internal(
     seq1: &str,
     seq2: &str,
-    gap_penalty: i32,
+    gap_open: i32,
+    gap_extend: i32,
 ) -> AlignmentResult {
-    needleman_wunsch_with_matrix(seq1, seq2, gap_penalty, blosum62_score)
+    needleman_wunsch_with_matrix(seq1, seq2, gap_open, gap_extend, blosum62_score)
 }
 
 pub fn needleman_wunsch_internal(
@@ -315,10 +350,15 @@ pub fn needleman_wunsch_internal(
     seq2: &str,
     match_score: i32,
     mismatch_penalty: i32,
-    gap_penalty: i32,
+    gap_open: i32,
+    gap_extend: i32,
 ) -> AlignmentResult {
-    needleman_wunsch_with_matrix(seq1, seq2, gap_penalty, |a, b| {
-        if a == b { match_score } else { mismatch_penalty }
+    needleman_wunsch_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
+        if a == b {
+            match_score
+        } else {
+            mismatch_penalty
+        }
     })
 }
 
@@ -328,7 +368,7 @@ mod tests {
 
     #[test]
     fn align_identical_sequences() {
-        let r = smith_waterman_internal("GATTACA", "GATTACA", 2, -1, -1);
+        let r = smith_waterman_internal("GATTACA", "GATTACA", 2, -1, -1, -1);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -338,7 +378,7 @@ mod tests {
 
     #[test]
     fn align_acacacta_agcacaca() {
-        let r = smith_waterman_internal("ACACACTA", "AGCACACA", 2, -1, -1);
+        let r = smith_waterman_internal("ACACACTA", "AGCACACA", 2, -1, -1, -1);
         assert_eq!(r.aligned_seq1, "A-CACACTA");
         assert_eq!(r.aligned_seq2, "AGCACAC-A");
         assert_eq!(r.aligned_length, 7);
@@ -347,7 +387,7 @@ mod tests {
 
     #[test]
     fn align_gattaca_gcatgcu() {
-        let r = smith_waterman_internal("GATTACA", "GCATGCU", 2, -1, -1);
+        let r = smith_waterman_internal("GATTACA", "GCATGCU", 2, -1, -1, -1);
         assert_eq!(r.aligned_seq1, "G-AT---TACA");
         assert_eq!(r.aligned_seq2, "GCATGCU----");
         assert_eq!(r.aligned_length, 3);
@@ -356,7 +396,7 @@ mod tests {
 
     #[test]
     fn blosum62_identical_sequences() {
-        let r = smith_waterman_blosum62_internal("GATTACA", "GATTACA", -1);
+        let r = smith_waterman_blosum62_internal("GATTACA", "GATTACA", -1, -1);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -365,7 +405,7 @@ mod tests {
 
     #[test]
     fn nw_identical_sequences() {
-        let r = needleman_wunsch_internal("GATTACA", "GATTACA", 2, -1, -1);
+        let r = needleman_wunsch_internal("GATTACA", "GATTACA", 2, -1, -1, -1);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
@@ -374,7 +414,7 @@ mod tests {
 
     #[test]
     fn nw_blosum62_identical_sequences() {
-        let r = needleman_wunsch_blosum62_internal("GATTACA", "GATTACA", -1);
+        let r = needleman_wunsch_blosum62_internal("GATTACA", "GATTACA", -1, -1);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
