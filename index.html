@@ -18,6 +18,9 @@
         .partial { color: orange; }
         .mismatch { color: red; }
         .gap { color: gray; }
+        .btn-group button {
+            margin-right: 20px;
+        }
     </style>
 
     <script type="module">
@@ -201,8 +204,8 @@
                     <label>Gap extend penalty: <input type="number" id="gap-extend" value="-1"></label>
                 </div>
                 <div class="btn-group" role="group">
-                    <button class="btn btn-primary" onclick="alignSequences('sw')">Local Align</button>
-                    <button class="btn btn-secondary" onclick="alignSequences('nw')">Global Align</button>
+                    <button class="btn btn-primary" onclick="alignSequences('sw')">Local Alignment</button>
+                    <button class="btn btn-primary" onclick="alignSequences('nw')">Global Alignment</button>
                 </div>
                 <div id="result-container"
                      style="visibility: hidden;">
