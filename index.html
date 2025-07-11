@@ -15,6 +15,7 @@
             font-family: monospace;
         }
         .match { color: green; }
+        .partial { color: orange; }
         .mismatch { color: red; }
         .gap { color: gray; }
     </style>
@@ -68,6 +69,7 @@
 
                 const seq1 = result.aligned_seq1;
                 const seq2 = result.aligned_seq2;
+                const markup = result.alignment_markup;
                 let final = '';
                 let html1 = '';
                 let htmlm = '';
@@ -76,11 +78,15 @@
                 for (let i = 0; i < seq1.length; i++) {
                     const c1 = seq1[i];
                     const c2 = seq2[i];
+                    const mark = markup[i];
                     let cls = 'match';
-                    if (c1 === '-' || c2 === '-') {
+                    if (mark === ' ') {
                         cls = 'gap';
                         m = ' ';
-                    } else if (c1 !== c2) {
+                    } else if (mark === ':') {
+                        cls = 'partial';
+                        m = ':';
+                    } else if (mark === '.') {
                         cls = 'mismatch';
                         m = 'X';
                     } else {

@@ -62,6 +62,7 @@ pub struct AlignmentResult {
     pub aligned_seq2: String,
     pub aligned_length: usize,
     pub aligned_identity: f64,
+    pub alignment_markup: String,
 }
 
 pub fn smith_waterman_with_matrix<F>(
@@ -159,6 +160,20 @@ where
     aligned_seq1.reverse();
     aligned_seq2.reverse();
 
+    let mut markup = String::with_capacity(aligned_seq1.len());
+    for (&a, &b) in aligned_seq1.iter().zip(aligned_seq2.iter()) {
+        let ch = if a == b && a != b'-' {
+            '|'
+        } else if a == b'-' || b == b'-' {
+            ' '
+        } else if score_fn(a, b) > 0 {
+            ':'
+        } else {
+            '.'
+        };
+        markup.push(ch);
+    }
+
     AlignmentResult {
         aligned_seq1: String::from_utf8(aligned_seq1).unwrap(),
         aligned_seq2: String::from_utf8(aligned_seq2).unwrap(),
@@ -168,6 +183,7 @@ where
         } else {
             0.0
         },
+        alignment_markup: markup,
     }
 }
 
@@ -259,6 +275,20 @@ where
     aligned_seq1.reverse();
     aligned_seq2.reverse();
 
+    let mut markup = String::with_capacity(aligned_seq1.len());
+    for (&a, &b) in aligned_seq1.iter().zip(aligned_seq2.iter()) {
+        let ch = if a == b && a != b'-' {
+            '|'
+        } else if a == b'-' || b == b'-' {
+            ' '
+        } else if score_fn(a, b) > 0 {
+            ':'
+        } else {
+            '.'
+        };
+        markup.push(ch);
+    }
+
     AlignmentResult {
         aligned_seq1: String::from_utf8(aligned_seq1).unwrap(),
         aligned_seq2: String::from_utf8(aligned_seq2).unwrap(),
@@ -268,6 +298,7 @@ where
         } else {
             0.0
         },
+        alignment_markup: markup,
     }
 }
 
@@ -302,6 +333,7 @@ mod tests {
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
         assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
+        assert_eq!(r.alignment_markup, "|||||||");
     }
 
     #[test]
