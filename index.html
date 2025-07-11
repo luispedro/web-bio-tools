@@ -54,24 +54,24 @@
                     return;
                 }
                 warningEl.style.display = 'none';
-                const gapOpen = parseInt(document.getElementById('gap-open').value, 10);
-                const gapExtend = parseInt(document.getElementById('gap-extend').value, 10);
+                const gapOpen = parseFloat(document.getElementById('gap-open').value);
+                const gapExtend = parseFloat(document.getElementById('gap-extend').value);
                 const weightOption = document.getElementById('weight-option').value;
                 let result;
                 if (algorithm === 'nw') {
                     if (weightOption === 'blosum62') {
                         result = needleman_wunsch_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
                     } else {
-                        const matchScore = parseInt(document.getElementById('match-score').value, 10);
-                        const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
+                        const matchScore = parseFloat(document.getElementById('match-score').value);
+                        const mismatchPenalty = parseFloat(document.getElementById('mismatch-penalty').value);
                         result = needleman_wunsch_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
                     }
                 } else {
                     if (weightOption === 'blosum62') {
                         result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
                     } else {
-                        const matchScore = parseInt(document.getElementById('match-score').value, 10);
-                        const mismatchPenalty = parseInt(document.getElementById('mismatch-penalty').value, 10);
+                        const matchScore = parseFloat(document.getElementById('match-score').value);
+                        const mismatchPenalty = parseFloat(document.getElementById('mismatch-penalty').value);
                         result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
                     }
                 }
@@ -223,7 +223,7 @@
                         <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
                     </div>
                     <label>Gap open penalty: <input type="number" id="gap-open" value="-10"></label><br>
-                    <label>Gap extend penalty: <input type="number" id="gap-extend" value="-1"></label>
+                    <label>Gap extend penalty: <input type="number" id="gap-extend" value="-0.5"></label>
                 </div>
                 <div id="input-warning" class="alert alert-warning mt-2" style="display:none"></div>
                 <div class="btn-group" role="group">
