@@ -125,15 +125,25 @@
     </script>
     <script>
         $(function() {
-            const seq_example1 = ">SHD1_0000\n" +
-                "MKAGHLKDIDKPSEPFEVIGKIIPRYENENWTFTELLYEAPYLKSYQDEEDEEDEEADCLEYIDNTDKIIYLYYQDDKCVGKVKLRKNWNRYAYIEDIAVCKDFRGQGIGSALINISIEWAKHKNLHGLMLETQDNNLIACKFYHNCGFKIGSVDTMLYANFENNFEKAVFWYLRF"
-            const seq_example2 = ">gb|AAB53445.1|+|SAT-4 [Campylobacter coli]\n" +
+            const seq_example_similar_1 = ">SHD1_0000\n" +
+                "MKAGHLKDIDKPSEPFEVIGKIIPRYENENWTFTELLYEAPYLKSYQDEEDEEDEEADCLEYIDNTDKIIYLYYQDDKCVGKVKLRKNWNRYAYIEDIAVCKDFRGQGIGSALINISIEWAKHKNLHGLMLETQDNNLIACKFYHNCGFKIGSVDTMLYANFENNFEKAVFWYLRF";
+            const seq_example_similar_2 = ">gb|AAB53445.1|+|SAT-4 [Campylobacter coli]\n" +
                 "MITEMKAEHLKDIDKPSEPFEVIGKIIPRYENENWTFTELLYEAPYLKSYQDEEDEEDEEADCLEYIDNTDKIIYLYYQDDKCVGKVKLRKNWNRYAYIEDIAVCKDFRGQGIGSALINISIEWAKHKNLHGLMLETQDNNLIACKFYHNCGFKIGSVDTMLYANFENNFEKAVFWYLRF";
 
-            $('#load-example').on('click', function(e) {
+            const seq_example_different_1 = ">ERMA_STAAU\n" +
+                "MNQKNPKDTQNFITSKKHVKEILNHTNISKQDNVIEIGSGKGHFTKELVKMSRSVTAIEIDGGLCQVTKEAVNPSENIKVIQTDILKFSFPKHINYKIYGNIPYNISTDIVKRITFESQAKYSYLIVEKGFAKRLQNLQRALGLLLMVEMDIKMLKKVPPLYFHPKPSVDSVLIVLERHQPLISKKDYKKYRSFVYKWVNREYRVLFTKNQFRQALKHANVTNINKLSKEQFLSIFNSYKLFH";
+            const seq_example_different_2 = ">ERMA_AERER\n" +
+                "MAGPQDRPRGRGPSSGRPQRPVGGRSQRDRDRRVLGQNFLRDPATIRRIADAADVDPDGLVVEAGPGEGLLTRELARRAGRVRTYELDQRLARRLSTDLAQETSIEVVHADFLTAPHPEEPFQFVGAIPYGITSAIVDWCLTAPTLTSATLVTQQEFARKRTGDYGRWTALTVTTWPTFEWQYVAKVDRTLFTPVPRVHSAIMRLRRRPQPLLRDAAARSRFADMVEIGFVGKGGSLYRSLTREWPRSKVDSAFARADVHHDEIVAFVHPDQWITLFQLLDGSRGGAARGPGDQRGRRGRPGGGPRPDGRAGGGPRRDAGGRRTGDGRGGRPRPPRGGQA";
+
+            $('#load-example-similar').on('click', function(e) {
                 e.preventDefault();
-                $('#seq1').val(seq_example1);
-                $('#seq2').val(seq_example2);
+                $('#seq1').val(seq_example_similar_1);
+                $('#seq2').val(seq_example_similar_2);
+            });
+            $('#load-example-different').on('click', function(e) {
+                e.preventDefault();
+                $('#seq1').val(seq_example_different_1);
+                $('#seq2').val(seq_example_different_2);
             });
             $('#toggle-advanced').on('click', function(e) {
                 e.preventDefault();
@@ -171,7 +181,11 @@
                 <h2>Sequence Alignment</h2>
                 <textarea id="seq1" placeholder="Enter first sequence (FASTA or raw)" rows=24 cols=48></textarea>
                 <textarea id="seq2" placeholder="Enter second sequence (FASTA or raw)" rows=24 cols=48></textarea>
-                <p><a href="#" id="load-example">Load example sequences</a></p>
+                <p>
+                    Load example sequences:
+                    <a href="#" id="load-example-similar">similar sequences</a> |
+                    <a href="#" id="load-example-different">very different sequences</a>
+                </p>
                 <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
                 <div id="advanced-params" style="display:none;">
                     <label>Algorithm:
