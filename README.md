@@ -1,5 +1,7 @@
 # Web Bio Tools
 
+**Warning: This project is experimental and untested.**
+
 Rust implementation of some simple bioinformatics tools designed to run in the browser (using WebAssembly).
 
 Live version: [https://web-bio-tools.netlify.app/](https://web-bio-tools.netlify.app/)
