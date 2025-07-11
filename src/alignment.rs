@@ -141,7 +141,7 @@ where
             i -= 1;
             j -= 1;
             aligned_length += 1;
-            if seq1[i] == seq2[j] {
+            if seq1[i].to_ascii_uppercase() == seq2[j].to_ascii_uppercase() {
                 aligned_identity += 1.0;
             }
         } else if current_score == up_score {
@@ -172,7 +172,7 @@ where
 
     let mut markup = String::with_capacity(aligned_seq1.len());
     for (&a, &b) in aligned_seq1.iter().zip(aligned_seq2.iter()) {
-        let ch = if a == b && a != b'-' {
+        let ch = if a.to_ascii_uppercase() == b.to_ascii_uppercase() && a != b'-' && b != b'-' {
             '|'
         } else if a == b'-' || b == b'-' {
             ' '
@@ -215,7 +215,7 @@ pub fn smith_waterman_internal(
     gap_extend: i32,
 ) -> AlignmentResult {
     smith_waterman_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
-        if a == b {
+        if a.to_ascii_uppercase() == b.to_ascii_uppercase() {
             match_score
         } else {
             mismatch_penalty
@@ -287,7 +287,7 @@ where
         {
             aligned_seq1.push(seq1[i - 1]);
             aligned_seq2.push(seq2[j - 1]);
-            if seq1[i - 1] == seq2[j - 1] {
+            if seq1[i - 1].to_ascii_uppercase() == seq2[j - 1].to_ascii_uppercase() {
                 aligned_identity += 1.0;
             }
             aligned_length += 1;
@@ -311,7 +311,7 @@ where
 
     let mut markup = String::with_capacity(aligned_seq1.len());
     for (&a, &b) in aligned_seq1.iter().zip(aligned_seq2.iter()) {
-        let ch = if a == b && a != b'-' {
+        let ch = if a.to_ascii_uppercase() == b.to_ascii_uppercase() && a != b'-' && b != b'-' {
             '|'
         } else if a == b'-' || b == b'-' {
             ' '
@@ -354,7 +354,7 @@ pub fn needleman_wunsch_internal(
     gap_extend: i32,
 ) -> AlignmentResult {
     needleman_wunsch_with_matrix(seq1, seq2, gap_open, gap_extend, |a, b| {
-        if a == b {
+        if a.to_ascii_uppercase() == b.to_ascii_uppercase() {
             match_score
         } else {
             mismatch_penalty
@@ -404,12 +404,32 @@ mod tests {
     }
 
     #[test]
+    fn smith_waterman_case_insensitive() {
+        let r = smith_waterman_internal("gAttAcA", "GATTACA", 2, -1, -1, -1);
+        assert_eq!(r.aligned_seq1, "gAttAcA");
+        assert_eq!(r.aligned_seq2, "GATTACA");
+        assert_eq!(r.aligned_length, 7);
+        assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
+        assert_eq!(r.alignment_markup, "|||||||");
+    }
+
+    #[test]
     fn nw_identical_sequences() {
         let r = needleman_wunsch_internal("GATTACA", "GATTACA", 2, -1, -1, -1);
         assert_eq!(r.aligned_seq1, "GATTACA");
         assert_eq!(r.aligned_seq2, "GATTACA");
         assert_eq!(r.aligned_length, 7);
         assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn needleman_wunsch_case_insensitive() {
+        let r = needleman_wunsch_internal("GATTACA", "gattaca", 2, -1, -1, -1);
+        assert_eq!(r.aligned_seq1, "GATTACA");
+        assert_eq!(r.aligned_seq2, "gattaca");
+        assert_eq!(r.aligned_length, 7);
+        assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
+        assert_eq!(r.alignment_markup, "|||||||");
     }
 
     #[test]
