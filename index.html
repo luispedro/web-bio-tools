@@ -47,6 +47,13 @@
             window.alignSequences = (algorithm) => {
                 const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
+                const warningEl = document.getElementById('input-warning');
+                if (parsed1.sequence === '' || parsed2.sequence === '') {
+                    warningEl.textContent = 'Please enter sequences in both input fields before alignment.';
+                    warningEl.style.display = 'block';
+                    return;
+                }
+                warningEl.style.display = 'none';
                 const gapOpen = parseInt(document.getElementById('gap-open').value, 10);
                 const gapExtend = parseInt(document.getElementById('gap-extend').value, 10);
                 const weightOption = document.getElementById('weight-option').value;
@@ -203,6 +210,7 @@
                     <label>Gap open penalty: <input type="number" id="gap-open" value="-1"></label><br>
                     <label>Gap extend penalty: <input type="number" id="gap-extend" value="-1"></label>
                 </div>
+                <div id="input-warning" class="alert alert-warning mt-2" style="display:none"></div>
                 <div class="btn-group" role="group">
                     <button class="btn btn-primary" onclick="alignSequences('sw')">Local Alignment</button>
                     <button class="btn btn-primary" onclick="alignSequences('nw')">Global Alignment</button>
