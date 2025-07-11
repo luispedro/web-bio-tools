@@ -49,7 +49,7 @@
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
                 const warningEl = document.getElementById('input-warning');
                 if (parsed1.sequence === '' || parsed2.sequence === '') {
-                    warningEl.textContent = 'Please enter sequences in both input fields before alignment.';
+                    warningEl.textContent = 'Please enter sequences in both input fields before alignment. You can also load the example sequences.';
                     warningEl.style.display = 'block';
                     return;
                 }
