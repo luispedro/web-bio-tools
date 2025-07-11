@@ -66,3 +66,15 @@ nav h6 {
     text-transform: uppercase;
     font-weight: bold;
 }
+
+#uniform-params {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.4s ease, opacity 0.4s ease;
+}
+
+#uniform-params.show {
+    max-height: 100px;
+    opacity: 1;
+}
