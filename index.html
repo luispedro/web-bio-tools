@@ -12,6 +12,7 @@
 <body>
     <style>
         #result-container pre {
+            padding-top: 10px;
             font-family: monospace;
         }
         .match { color: green; }
@@ -127,6 +128,7 @@
                 document.getElementById('alignment-length').textContent = result.aligned_length;
                 document.getElementById('alignment-score').textContent = (100 * result.aligned_identity).toFixed(2) + '%';
                 document.getElementById('alignment-raw-score').textContent = result.score.toFixed(2);
+                document.getElementById('alignment-mode').textContent = algorithm === 'nw' ? 'global' : 'local';
             };
 
         }
@@ -233,7 +235,7 @@
                 </div>
                 <div id="result-container"
                      style="visibility: hidden;">
-                    <h3>Alignment Result:</h3>
+                    <h3>Alignment result (<span id="alignment-mode"></span>)</h3>
                     <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span> identity, score <span id="alignment-raw-score"></span>)</p>
                     <pre id="result"></pre>
                 </div>
