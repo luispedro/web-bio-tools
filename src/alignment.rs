@@ -451,4 +451,54 @@ mod tests {
         assert_eq!(r.aligned_length, 7);
         assert!((r.aligned_identity - 1.0).abs() < f64::EPSILON);
     }
+
+    #[test]
+    fn blosum62_symmetry() {
+        for i in 0..20 {
+            for j in 0..20 {
+                assert_eq!(
+                    BLOSUM62_MATRIX[i][j],
+                    BLOSUM62_MATRIX[j][i],
+                    "BLOSUM62 matrix is not symmetric at indices ({}, {})",
+                    i, j
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sw_known_cases() {
+        let seq1 = "MTFSSTSSAPPPSPLLPATRITVYGCGRDEAALFRRTAPRFGVEATLTEAAVSEENAEMAAGNQCISIDHKTPVTPATLRALHRAGVTYISTRSIGYNHIDVTYAAGVGISVENVTYSPAGVADYTLMLMLMAVRNAKSTVRRAELHDYRLNEIRGKELRDLTVGVIGTGRIGAAVVDRLRGFGSRVLAYGKRPTIAADYVSLDELLRSSDIVSLHVPLTPDTHHLLDQSRIRRMKSGAFVINTGRGPLIDTEALVPALESGRLSGAALDVIEGEEGIFYADCRNRTIESTWLPRLQKMPNVLISPHTAYYTDHALMDTVENSIINCLNFGSRKQHGVGQVGQVEGRHRIRGLFRRTRRFRQVRPGGRTQPRHREVPAVLRGDHEGRRLETLRRARPGLGERRLPS";
+        let seq2 = "MSYRDLGLIDSEVIAERRVRALDDSSPSAVPTTGVRVFGCGHDEAVLFREMGTRLGITPSITEEAISETNAELARGNRCISVSHKTQIDNSTLLALSRVGVEYISTRSVGYNHIDVEFAASIGISVGNVDYSPDSVGDYTLMLMLMTVRHAKSIVRRADTHDYRLNDTRGRELRDLTVGVIGTGRIGTAVIDRLQGFGCRVLAHDSGPHASADYVPLDELLRQSDIVTLHTPLTADTHHLLDRQRIDQMKHGAYIVNTGRGPLLDTEALLSALESGRLGGAALDVVEGEEGIFYADCRNRLIENKALVRLQRLPNVLISPHSAYYTDHALNDTVENSLVNCLNFESGRTA";
+
+        // tested againt EMBL-EBI alignment tool & against Biopython
+        assert_eq!(
+            smith_waterman_blosum62_internal(seq1, seq2, -10.0, -0.5).score,
+            1178.0);
+
+        let r5_005 = smith_waterman_blosum62_internal(seq1, seq2, -5.0, -0.05);
+        assert!((r5_005.score - 1198.1).abs() < 0.01, "Expected score close to 1198.1, got {}", r5_005.score);
+
+        assert_eq!(
+            smith_waterman_blosum62_internal(seq1, seq2, -5.0, -0.5).score,
+            1185.0);
+
+        // NW Tested againt Biopython's implementation
+        assert_eq!(
+            needleman_wunsch_blosum62_internal(seq1, seq2, -10.0, -0.5).score,
+            1130.0);
+
+        assert_eq!(
+            needleman_wunsch_blosum62_internal(seq1, seq2, -2.0, -0.5).score,
+            1181.0);
+
+        assert_eq!(
+            needleman_wunsch_blosum62_internal(&seq1[10..100], &seq2[10..100], -2.0, -0.5).score,
+            201.0);
+
+        assert_eq!(
+            needleman_wunsch_blosum62_internal(&seq1[10..100], &seq2[10..100], -7.0, -0.5).score,
+            178.5);
+
+    }
 }
