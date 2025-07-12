@@ -192,6 +192,63 @@
                 displayResult(item.result, item.algorithm);
             }
 
+            window.downloadAlignment = function() {
+                if (!window.lastAlignment) return;
+                const a = window.lastAlignment;
+                const r = a.result;
+                const seq1 = r.aligned_seq1;
+                const seq2 = r.aligned_seq2;
+                const markup = r.alignment_markup;
+                let text = '';
+                let l1 = '', l2 = '', lm = '';
+                for (let i = 0; i < seq1.length; i++) {
+                    let m = markup[i];
+                    if (m === ' ') m = ' ';
+                    else if (m === ':') m = ':';
+                    else if (m === '.') m = 'X';
+                    else m = '|';
+                    l1 += seq1[i];
+                    l2 += seq2[i];
+                    lm += m;
+                    if (i % 80 === 79) {
+                        text += l1 + '\n' + lm + '\n' + l2 + '\n\n';
+                        l1 = '';
+                        lm = '';
+                        l2 = '';
+                    }
+                }
+                if (l1.length > 0) {
+                    text += l1 + '\n' + lm + '\n' + l2 + '\n';
+                }
+
+                let content = 'Sequence Alignment\n';
+                content += 'Time: ' + new Date(a.timestamp).toLocaleString() + '\n';
+                content += 'Algorithm: ' + (a.algorithm === 'nw' ? 'global (Needleman-Wunsch)' : 'local (Smith-Waterman)') + '\n';
+                content += 'Scoring matrix: ' + a.weightOption + '\n';
+                if (a.weightOption === 'uniform') {
+                    content += 'Match score: ' + a.matchScore + '\n';
+                    content += 'Mismatch penalty: ' + a.mismatchPenalty + '\n';
+                }
+                content += 'Gap open: ' + a.gapOpen + '\n';
+                content += 'Gap extend: ' + a.gapExtend + '\n';
+                content += '\nInput sequence 1 (' + a.name1 + '):\n' + a.seq1 + '\n';
+                content += '\nInput sequence 2 (' + a.name2 + '):\n' + a.seq2 + '\n';
+                content += '\nAlignment length: ' + r.aligned_length + '\n';
+                content += 'Identity: ' + (100 * r.aligned_identity).toFixed(2) + '%\n';
+                content += 'Score: ' + r.score.toFixed(2) + '\n\n';
+                content += text;
+
+                const blob = new Blob([content], {type: 'text/plain'});
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = a.name1 + '_vs_' + a.name2 + '.txt';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+
             window.lastAlignment = null;
             window.updateSavedAlignments();
 
@@ -233,6 +290,11 @@
                     seq1: parsed1.sequence,
                     seq2: parsed2.sequence,
                     algorithm,
+                    weightOption,
+                    matchScore: parseFloat(document.getElementById('match-score').value),
+                    mismatchPenalty: parseFloat(document.getElementById('mismatch-penalty').value),
+                    gapOpen,
+                    gapExtend,
                     result,
                     timestamp: Date.now()
                 };
@@ -297,6 +359,10 @@
                 localStorage.setItem('savedAlignments', JSON.stringify(saved));
                 updateSavedAlignments();
             });
+            $('#download-alignment').on('click', function(e) {
+                e.preventDefault();
+                window.downloadAlignment();
+            });
             $('#clear-history').on('click', function(e) {
                 e.preventDefault();
                 window.clearSavedAlignments();
@@ -357,6 +423,7 @@
                     <h3>Alignment result (<span id="alignment-mode"></span>)</h3>
                     <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span> identity, score <span id="alignment-raw-score"></span>)</p>
                     <button id="save-alignment" class="btn btn-secondary btn-sm mb-2">Save Alignment</button>
+                    <button id="download-alignment" class="btn btn-secondary btn-sm mb-2">Download Alignment</button>
                     <pre id="result"></pre>
                 </div>
 
