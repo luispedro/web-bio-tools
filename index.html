@@ -133,6 +133,13 @@
                     const time = document.createElement('small');
                     time.className = 'text-muted ml-2';
                     time.textContent = formatDate(item.timestamp);
+                    const share = document.createElement('button');
+                    share.className = 'btn btn-link btn-sm float-right';
+                    share.innerHTML = '<i class="fa fa-share"></i>';
+                    share.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        window.shareSavedAlignment(idx);
+                    });
                     const del = document.createElement('button');
                     del.className = 'btn btn-link btn-sm text-danger float-right';
                     del.innerHTML = '&times;';
@@ -142,6 +149,7 @@
                     });
                     li.appendChild(a);
                     li.appendChild(time);
+                    li.appendChild(share);
                     li.appendChild(del);
                     list.appendChild(li);
                 });
@@ -202,6 +210,33 @@
                 document.getElementById('seq1').value = `>${item.name1}\n${item.seq1}`;
                 document.getElementById('seq2').value = `>${item.name2}\n${item.seq2}`;
                 displayResult(item.result, item.algorithm);
+            }
+
+            window.shareSavedAlignment = function(idx) {
+                const saved = JSON.parse(localStorage.getItem('savedAlignments') || '[]');
+                const item = saved[idx];
+                if (!item) return;
+                const url = new URL(window.location.href.split('?')[0]);
+                url.searchParams.set('seq1', `>${item.name1}\n${item.seq1}`);
+                url.searchParams.set('seq2', `>${item.name2}\n${item.seq2}`);
+                url.searchParams.set('gap_open', item.gapOpen);
+                url.searchParams.set('gap_extend', item.gapExtend);
+                url.searchParams.set('weight', item.weightOption);
+                if (item.weightOption === 'uniform') {
+                    url.searchParams.set('match_score', item.matchScore);
+                    url.searchParams.set('mismatch_penalty', item.mismatchPenalty);
+                }
+                url.searchParams.set('mode', item.algorithm);
+                const shareUrl = url.toString();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        alert('Share URL copied to clipboard.');
+                    }, () => {
+                        window.prompt('Share this URL', shareUrl);
+                    });
+                } else {
+                    window.prompt('Share this URL', shareUrl);
+                }
             }
 
             window.downloadAlignment = function() {
