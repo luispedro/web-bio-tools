@@ -45,37 +45,7 @@
                 }
             }
 
-            window.alignSequences = (algorithm) => {
-                const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
-                const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
-                const warningEl = document.getElementById('input-warning');
-                if (parsed1.sequence === '' || parsed2.sequence === '') {
-                    warningEl.textContent = 'Please enter sequences in both input fields before alignment. You can also load the example sequences.';
-                    warningEl.style.display = 'block';
-                    return;
-                }
-                warningEl.style.display = 'none';
-                const gapOpen = parseFloat(document.getElementById('gap-open').value);
-                const gapExtend = parseFloat(document.getElementById('gap-extend').value);
-                const weightOption = document.getElementById('weight-option').value;
-                let result;
-                if (algorithm === 'nw') {
-                    if (weightOption === 'blosum62') {
-                        result = needleman_wunsch_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
-                    } else {
-                        const matchScore = parseFloat(document.getElementById('match-score').value);
-                        const mismatchPenalty = parseFloat(document.getElementById('mismatch-penalty').value);
-                        result = needleman_wunsch_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
-                    }
-                } else {
-                    if (weightOption === 'blosum62') {
-                        result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
-                    } else {
-                        const matchScore = parseFloat(document.getElementById('match-score').value);
-                        const mismatchPenalty = parseFloat(document.getElementById('mismatch-penalty').value);
-                        result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
-                    }
-                }
+            function displayResult(result, algorithm) {
                 document.getElementById('result-container').style.visibility = 'visible';
 
                 const seq1 = result.aligned_seq1;
@@ -129,7 +99,82 @@
                 document.getElementById('alignment-score').textContent = (100 * result.aligned_identity).toFixed(2) + '%';
                 document.getElementById('alignment-raw-score').textContent = result.score.toFixed(2);
                 document.getElementById('alignment-mode').textContent = algorithm === 'nw' ? 'global' : 'local';
-            };
+            }
+
+            window.updateSavedAlignments = function() {
+                const saved = JSON.parse(localStorage.getItem('savedAlignments') || '[]');
+                const list = document.getElementById('saved-alignments');
+                if (!list) return;
+                list.innerHTML = '';
+                saved.forEach((item, idx) => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item p-1';
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.dataset.index = idx;
+                    a.textContent = `${item.name1} vs ${item.name2}`;
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        window.showSavedAlignment(idx);
+                    });
+                    li.appendChild(a);
+                    list.appendChild(li);
+                });
+            }
+
+            window.showSavedAlignment = function(idx) {
+                const saved = JSON.parse(localStorage.getItem('savedAlignments') || '[]');
+                const item = saved[idx];
+                if (!item) return;
+                document.getElementById('seq1').value = `>${item.name1}\n${item.seq1}`;
+                document.getElementById('seq2').value = `>${item.name2}\n${item.seq2}`;
+                displayResult(item.result, item.algorithm);
+            }
+
+            window.lastAlignment = null;
+            window.updateSavedAlignments();
+
+            window.alignSequences = (algorithm) => {
+                const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
+                const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
+                const warningEl = document.getElementById('input-warning');
+                if (parsed1.sequence === '' || parsed2.sequence === '') {
+                    warningEl.textContent = 'Please enter sequences in both input fields before alignment. You can also load the example sequences.';
+                    warningEl.style.display = 'block';
+                    return;
+                }
+                warningEl.style.display = 'none';
+                const gapOpen = parseFloat(document.getElementById('gap-open').value);
+                const gapExtend = parseFloat(document.getElementById('gap-extend').value);
+                const weightOption = document.getElementById('weight-option').value;
+                let result;
+                if (algorithm === 'nw') {
+                    if (weightOption === 'blosum62') {
+                        result = needleman_wunsch_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
+                    } else {
+                        const matchScore = parseFloat(document.getElementById('match-score').value);
+                        const mismatchPenalty = parseFloat(document.getElementById('mismatch-penalty').value);
+                        result = needleman_wunsch_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
+                    }
+                } else {
+                    if (weightOption === 'blosum62') {
+                        result = smith_waterman_blosum62(parsed1.sequence, parsed2.sequence, gapOpen, gapExtend);
+                    } else {
+                        const matchScore = parseFloat(document.getElementById('match-score').value);
+                        const mismatchPenalty = parseFloat(document.getElementById('mismatch-penalty').value);
+                        result = smith_waterman_custom(parsed1.sequence, parsed2.sequence, matchScore, mismatchPenalty, gapOpen, gapExtend);
+                    }
+                }
+                displayResult(result, algorithm);
+                window.lastAlignment = {
+                    name1: parsed1.name,
+                    name2: parsed2.name,
+                    seq1: parsed1.sequence,
+                    seq2: parsed2.sequence,
+                    algorithm,
+                    result
+                };
+                };
 
         }
 
@@ -182,6 +227,14 @@
                     $('#uniform-params').removeClass('show');
                 }
             }).trigger('change');
+            $('#save-alignment').on('click', function(e) {
+                e.preventDefault();
+                if (!window.lastAlignment) return;
+                const saved = JSON.parse(localStorage.getItem('savedAlignments') || '[]');
+                saved.unshift(window.lastAlignment);
+                localStorage.setItem('savedAlignments', JSON.stringify(saved));
+                updateSavedAlignments();
+            });
         });
     </script>
 
@@ -237,6 +290,7 @@
                      style="visibility: hidden;">
                     <h3>Alignment result (<span id="alignment-mode"></span>)</h3>
                     <p>Alignment length: <span id="alignment-length"></span> (<span id="alignment-score"></span> identity, score <span id="alignment-raw-score"></span>)</p>
+                    <button id="save-alignment" class="btn btn-secondary btn-sm mb-2">Save Alignment</button>
                     <pre id="result"></pre>
                 </div>
 
@@ -249,6 +303,14 @@
                     Source code available on <a href="https://github.com/luispedro/web-bio-tools">GitHub</a>.<br>
                     Author: <a href="https://luispedro.org">Luis Pedro Coelho</a>
                 </p>
+            </div>
+            <div class="col-md-3">
+                <nav id="rightbar">
+                    <div>
+                        <h6>Saved Alignments</h6>
+                        <ul id="saved-alignments" class="list-group"></ul>
+                    </div>
+                </nav>
             </div>
         </div>
     </div>
