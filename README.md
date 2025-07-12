@@ -7,6 +7,8 @@ Rust implementation of some simple bioinformatics tools designed to run in the b
 
 Live version: [https://web-bio-tools.big-data-biology.org/](https://web-bio-tools.big-data-biology.org/)
 
+Saved alignments can generate shareable URLs that reproduce the alignment when opened.
+
 
 ## Local development
 
