@@ -284,6 +284,7 @@
                 content += 'Identity: ' + (100 * r.aligned_identity).toFixed(2) + '%\n';
                 content += 'Score: ' + r.score.toFixed(2) + '\n\n';
                 content += text;
+                content += '\nCreated using Web-Bio-Tools. See https://web-bio-tools.big-data-biology.org\n';
 
                 const blob = new Blob([content], {type: 'text/plain'});
                 const url = URL.createObjectURL(blob);
