@@ -1,10 +1,11 @@
 # Web Bio Tools
+[![Tests](https://github.com/luispedro/web-bio-tools/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/luispedro/web-bio-tools/actions/workflows/test.yml) [![Deployed](https://img.shields.io/website?url=https%3A%2F%2Fweb-bio-tools.big-data-biology.org&label=deployed)](https://web-bio-tools.big-data-biology.org/)
 
 **Warning: This project is experimental and untested.**
 
 Rust implementation of some simple bioinformatics tools designed to run in the browser (using WebAssembly).
 
-Live version: [https://web-bio-tools.netlify.app/](https://web-bio-tools.netlify.app/)
+Live version: [https://web-bio-tools.big-data-biology.org/](https://web-bio-tools.big-data-biology.org/)
 
 
 ## Local development
