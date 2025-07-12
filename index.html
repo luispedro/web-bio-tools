@@ -101,6 +101,7 @@
                 document.getElementById('alignment-mode').textContent = algorithm === 'nw' ? 'global' : 'local';
             }
 
+            let rightbarShown = false;
             window.updateSavedAlignments = function() {
                 const saved = JSON.parse(localStorage.getItem('savedAlignments') || '[]');
                 const list = document.getElementById('saved-alignments');
@@ -117,8 +118,68 @@
                         e.preventDefault();
                         window.showSavedAlignment(idx);
                     });
+                    const time = document.createElement('small');
+                    time.className = 'text-muted ml-2';
+                    time.textContent = new Date(item.timestamp).toLocaleString();
+                    const del = document.createElement('button');
+                    del.className = 'btn btn-link btn-sm text-danger float-right';
+                    del.innerHTML = '&times;';
+                    del.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        window.deleteSavedAlignment(idx);
+                    });
                     li.appendChild(a);
+                    li.appendChild(time);
+                    li.appendChild(del);
                     list.appendChild(li);
+                });
+                const rb = document.getElementById('rightbar');
+                if (saved.length > 0) {
+                    rb.style.display = 'block';
+                    rightbarShown = true;
+                } else if (!rightbarShown) {
+                    rb.style.display = 'none';
+                }
+            }
+
+            window.showUndo = function(msg, undoFn) {
+                const cont = document.getElementById('undo-container');
+                cont.innerHTML = `${msg} <a href="#" id="undo-link">Undo</a>`;
+                cont.style.display = 'block';
+                if (window.undoTimeout) clearTimeout(window.undoTimeout);
+                document.getElementById('undo-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    cont.style.display = 'none';
+                    clearTimeout(window.undoTimeout);
+                    undoFn();
+                }, { once: true });
+                window.undoTimeout = setTimeout(() => {
+                    cont.style.display = 'none';
+                }, 10000);
+            }
+
+            window.deleteSavedAlignment = function(idx) {
+                const saved = JSON.parse(localStorage.getItem('savedAlignments') || '[]');
+                const item = saved.splice(idx, 1)[0];
+                localStorage.setItem('savedAlignments', JSON.stringify(saved));
+                updateSavedAlignments();
+                if (item) {
+                    window.showUndo('Alignment deleted.', () => {
+                        saved.splice(idx, 0, item);
+                        localStorage.setItem('savedAlignments', JSON.stringify(saved));
+                        updateSavedAlignments();
+                    });
+                }
+            }
+
+            window.clearSavedAlignments = function() {
+                const saved = JSON.parse(localStorage.getItem('savedAlignments') || '[]');
+                if (saved.length === 0) return;
+                localStorage.removeItem('savedAlignments');
+                updateSavedAlignments();
+                window.showUndo('History cleared.', () => {
+                    localStorage.setItem('savedAlignments', JSON.stringify(saved));
+                    updateSavedAlignments();
                 });
             }
 
@@ -172,7 +233,8 @@
                     seq1: parsed1.sequence,
                     seq2: parsed2.sequence,
                     algorithm,
-                    result
+                    result,
+                    timestamp: Date.now()
                 };
                 };
 
@@ -234,6 +296,10 @@
                 saved.unshift(window.lastAlignment);
                 localStorage.setItem('savedAlignments', JSON.stringify(saved));
                 updateSavedAlignments();
+            });
+            $('#clear-history').on('click', function(e) {
+                e.preventDefault();
+                window.clearSavedAlignments();
             });
         });
     </script>
@@ -305,10 +371,12 @@
                 </p>
             </div>
             <div class="col-md-3">
-                <nav id="rightbar">
+                <nav id="rightbar" style="display:none;">
                     <div>
                         <h6>Saved Alignments</h6>
-                        <ul id="saved-alignments" class="list-group"></ul>
+                        <button id="clear-history" class="btn btn-secondary btn-sm mb-2">Clear History</button>
+                        <div id="undo-container" class="alert alert-info p-1" style="display:none"></div>
+                        <ul id="saved-alignments" class="list-group mb-2"></ul>
                     </div>
                 </nav>
             </div>
