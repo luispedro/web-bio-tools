@@ -252,6 +252,28 @@
             window.lastAlignment = null;
             window.updateSavedAlignments();
 
+            const params = new URLSearchParams(window.location.search);
+            const pSeq1 = params.get('seq1');
+            const pSeq2 = params.get('seq2');
+            if (pSeq1) document.getElementById('seq1').value = pSeq1;
+            if (pSeq2) document.getElementById('seq2').value = pSeq2;
+            if (params.has('gap_open')) {
+                document.getElementById('gap-open').value = params.get('gap_open');
+            }
+            if (params.has('gap_extend')) {
+                document.getElementById('gap-extend').value = params.get('gap_extend');
+            }
+            if (params.has('match_score')) {
+                document.getElementById('match-score').value = params.get('match_score');
+            }
+            if (params.has('mismatch_penalty')) {
+                document.getElementById('mismatch-penalty').value = params.get('mismatch_penalty');
+            }
+            if (params.has('weight')) {
+                document.getElementById('weight-option').value = params.get('weight');
+                $('#weight-option').trigger('change');
+            }
+
             window.alignSequences = (algorithm) => {
                 const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
                 const parsed2 = parseFasta(document.getElementById('seq2').value, 'sequence2');
@@ -284,6 +306,7 @@
                     }
                 }
                 displayResult(result, algorithm);
+
                 window.lastAlignment = {
                     name1: parsed1.name,
                     name2: parsed2.name,
@@ -298,7 +321,13 @@
                     result,
                     timestamp: Date.now()
                 };
-                };
+            };
+
+            const modeParam = params.get('mode');
+            if (pSeq1 && pSeq2) {
+                const mode = (modeParam === 'nw' || modeParam === 'global') ? 'nw' : 'sw';
+                window.alignSequences(mode);
+            }
 
         }
 
