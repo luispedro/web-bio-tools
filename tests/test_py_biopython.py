@@ -1,6 +1,7 @@
 import web_bio_tools
 from Bio.Align import PairwiseAligner, substitution_matrices
 from hypothesis import given, settings, assume
+import hypothesis as hp
 from hypothesis import strategies as st
 
 
@@ -37,13 +38,17 @@ aa = "ARNDCQEGHILKMFPSTWYV"
 
 
 @given(
-    seq1=st.text(alphabet=aa, min_size=5, max_size=30),
-    seq2=st.text(alphabet=aa, min_size=5, max_size=30),
+    seq1=st.text(alphabet=aa, min_size=5, max_size=300),
+    seq2=st.text(alphabet=aa, min_size=5, max_size=300),
     gap_open=st.floats(min_value=-20, max_value=-1),
     gap_extend=st.floats(min_value=-2, max_value=-0.1),
 )
-@settings(max_examples=20, deadline=None)
+@settings(
+    max_examples=20,
+    suppress_health_check=[hp.HealthCheck.data_too_large],
+    deadline=None)
 def test_sw_blosum62_hypothesis(seq1, seq2, gap_open, gap_extend):
+    assume(gap_open <= gap_extend)
     result = web_bio_tools.smith_waterman_blosum62(seq1, seq2, gap_open, gap_extend)
     aligner = PairwiseAligner()
     aligner.mode = "local"
@@ -58,14 +63,17 @@ dna = "ACGT"
 
 
 @given(
-    seq1=st.text(alphabet=dna, min_size=5, max_size=40),
-    seq2=st.text(alphabet=dna, min_size=5, max_size=40),
+    seq1=st.text(alphabet=dna, min_size=5, max_size=120),
+    seq2=st.text(alphabet=dna, min_size=5, max_size=120),
     match_score=st.integers(min_value=1, max_value=5),
     mismatch_penalty=st.integers(min_value=-5, max_value=-1),
     gap_open=st.floats(min_value=-5, max_value=-1),
     gap_extend=st.floats(min_value=-2, max_value=-0.1),
 )
-@settings(max_examples=20, deadline=None)
+@settings(
+    max_examples=20,
+    suppress_health_check=[hp.HealthCheck.data_too_large],
+    deadline=None)
 def test_nw_globalms_hypothesis(seq1, seq2, match_score, mismatch_penalty, gap_open, gap_extend):
     assume(gap_open <= gap_extend)
     result = web_bio_tools.needleman_wunsch_custom(
