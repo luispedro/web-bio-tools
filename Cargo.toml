@@ -12,7 +12,14 @@ license = "MIT"
 wasm-bindgen = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.4"
-pyo3 = { version = "0.20", features = ["extension-module"] }
+pyo3 = { version = "0.20", optional = true, features = ["extension-module"] }
+
+[features]
+default = []
+python = ["pyo3"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
 
 
 [lib]
