@@ -321,6 +321,10 @@
                 document.getElementById('weight-option').value = params.get('weight');
                 $('#weight-option').trigger('change');
             }
+            if (params.has('seq_type')) {
+                document.getElementById('sequence-type').value = params.get('seq_type');
+                $('#sequence-type').trigger('change');
+            }
 
             window.alignSequences = (algorithm) => {
                 const parsed1 = parseFasta(document.getElementById('seq1').value, 'sequence1');
@@ -332,6 +336,13 @@
                     return;
                 }
                 warningEl.style.display = 'none';
+                const seqType = document.getElementById('sequence-type').value;
+                if (seqType === 'dna') {
+                    $('#weight-option').val('uniform').trigger('change');
+                } else if (/^[ATCG]+$/i.test(parsed1.sequence) && /^[ATCG]+$/i.test(parsed2.sequence)) {
+                    warningEl.textContent = 'Your sequences look like DNA. Did you mean to use the DNA model?';
+                    warningEl.style.display = 'block';
+                }
                 const gapOpen = parseFloat(document.getElementById('gap-open').value);
                 const gapExtend = parseFloat(document.getElementById('gap-extend').value);
                 const weightOption = document.getElementById('weight-option').value;
@@ -421,6 +432,11 @@
                     return txt === 'Show advanced parameters' ? 'Hide advanced parameters' : 'Show advanced parameters';
                 });
             });
+            $('#sequence-type').on('change', function() {
+                if (this.value === 'dna') {
+                    $('#weight-option').val('uniform').trigger('change');
+                }
+            });
             $('#weight-option').on('change', function() {
                 if (this.value === 'uniform') {
                     $('#uniform-params').addClass('show');
@@ -474,6 +490,12 @@
                     <a href="#" id="load-example-similar">very similar sequences</a> |
                     <a href="#" id="load-example-intermediate">somewhat divergent sequences</a> |
                     <a href="#" id="load-example-different">very different sequences</a>
+                </p>
+                <p>
+                    <label>Sequence type: <select id="sequence-type">
+                        <option value="protein" selected>Protein</option>
+                        <option value="dna">DNA</option>
+                    </select></label>
                 </p>
                 <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
                 <div id="advanced-params" style="display:none;">
