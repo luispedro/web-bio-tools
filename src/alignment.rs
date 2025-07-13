@@ -56,7 +56,7 @@ fn blosum62_score(a: u8, b: u8) -> f64 {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AlignmentResult {
     pub aligned_seq1: String,
     pub aligned_seq2: String,
