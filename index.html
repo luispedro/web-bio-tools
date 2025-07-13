@@ -345,6 +345,10 @@
                 }
                 const gapOpen = parseFloat(document.getElementById('gap-open').value);
                 const gapExtend = parseFloat(document.getElementById('gap-extend').value);
+                if (gapExtend < gapOpen) {
+                    warningEl.textContent = 'Gap extend penalty should be less severe than the gap open penalty.';
+                    warningEl.style.display = 'block';
+                }
                 const weightOption = document.getElementById('weight-option').value;
                 let result;
                 if (algorithm === 'nw') {
