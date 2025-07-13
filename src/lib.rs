@@ -3,6 +3,8 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
 mod alignment;
+#[cfg(not(target_arch = "wasm32"))]
+mod python;
 
 pub use alignment::AlignmentResult;
 
