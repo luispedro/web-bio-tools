@@ -20,6 +20,14 @@ wasm-pack`) and then run:
 wasm-pack build --target web
 ```
 
+The Python bindings are optional. To build them with
+[`maturin`](https://github.com/PyO3/maturin), enable the `python`
+feature:
+
+```bash
+maturin build --features python
+```
+
 You can test the tools in your browser by running a local server. For example, using Python:
 
 ```bash
