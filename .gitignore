@@ -1,3 +1,6 @@
 /target
 /dist/
 /dist.bak/
+/.hypothesis/
+/.pytest_cache/
+__pycache__/
