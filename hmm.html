@@ -32,21 +32,345 @@ import init, { parse_hmm } from './pkg/web_bio_tools.js';
 
 const exampleUrl = 'static/hmm-example.hmm';
 
+const residueColorPalette = {
+    A: '#1f77b4',
+    C: '#2ca02c',
+    D: '#d62728',
+    E: '#d62728',
+    F: '#9467bd',
+    G: '#ff7f0e',
+    H: '#17becf',
+    I: '#bcbd22',
+    K: '#1f77b4',
+    L: '#bcbd22',
+    M: '#bcbd22',
+    N: '#2ca02c',
+    P: '#ff9896',
+    Q: '#2ca02c',
+    R: '#1f77b4',
+    S: '#2ca02c',
+    T: '#2ca02c',
+    V: '#bcbd22',
+    W: '#9467bd',
+    Y: '#9467bd',
+    U: '#17becf',
+    X: '#7f7f7f',
+};
+
+function getResidueColor(symbol) {
+    if (!symbol) {
+        return '#6c757d';
+    }
+    const key = symbol.toUpperCase();
+    return residueColorPalette[key] || '#6c757d';
+}
+
+function formatPercentage(value) {
+    return `${value.toFixed(1)}%`;
+}
+
+function buildLogoEntries(headers, values) {
+    const entries = headers
+        .map((header, index) => ({
+            symbol: header,
+            raw: values[index],
+        }))
+        .filter(
+            (entry) =>
+                entry.raw !== null &&
+                entry.raw !== undefined &&
+                typeof entry.raw === 'number' &&
+                Number.isFinite(entry.raw)
+        )
+        .map((entry) => {
+            const weight = Math.exp(-entry.raw);
+            return {
+                ...entry,
+                weight: Number.isFinite(weight) && weight > 0 ? weight : 0,
+            };
+        })
+        .filter((entry) => entry.weight > 0);
+
+    if (!entries.length) {
+        return null;
+    }
+
+    const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0);
+    if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+        return null;
+    }
+
+    entries.sort((a, b) => a.weight - b.weight);
+
+    let offset = 0;
+    entries.forEach((entry, index) => {
+        let height = (entry.weight / totalWeight) * 100;
+        if (!Number.isFinite(height) || height <= 0) {
+            entry.height = 0;
+            entry.offset = offset;
+            return;
+        }
+        if (index === entries.length - 1) {
+            height = Math.max(0, 100 - offset);
+        }
+        entry.height = height;
+        entry.offset = offset;
+        offset += height;
+    });
+
+    return { entries, totalWeight };
+}
+
+function createLogoStack(entries, options = {}) {
+    const stack = document.createElement('div');
+    stack.className = options.stackClass ?? 'hmm-logo-stack';
+    const stackHeight = options.stackHeight ?? 150;
+    const stackWidth = options.stackWidth ?? 44;
+    stack.style.setProperty('--stack-height', `${stackHeight}px`);
+    stack.style.height = `${stackHeight}px`;
+    stack.style.width = typeof stackWidth === 'number' ? `${stackWidth}px` : stackWidth;
+
+    entries.forEach((entry) => {
+        if (!entry || !Number.isFinite(entry.height) || entry.height <= 0) {
+            return;
+        }
+        const span = document.createElement('span');
+        span.className = 'hmm-logo-letter';
+        span.textContent = entry.symbol;
+        span.style.bottom = `${entry.offset}%`;
+        span.style.height = `${entry.height}%`;
+        const pixelHeight = (entry.height / 100) * stackHeight;
+        const fontSize = Math.max(8, Math.min(pixelHeight * 0.82, stackHeight * 0.85));
+        span.style.fontSize = `${fontSize}px`;
+        span.style.backgroundColor = getResidueColor(entry.symbol);
+        span.title = `${entry.symbol}: ${formatOptional(entry.raw)} (≈ ${formatPercentage(entry.height)})`;
+        stack.appendChild(span);
+    });
+
+    return stack;
+}
+
+function getTopResidue(headers, values) {
+    const data = buildLogoEntries(headers, values);
+    if (!data || !data.entries.length) {
+        return null;
+    }
+    return data.entries[data.entries.length - 1];
+}
+
+function createInlineLogo(headers, values, options = {}) {
+    const data = buildLogoEntries(headers, values);
+    if (!data) {
+        return null;
+    }
+    const container = document.createElement('div');
+    container.className = options.containerClass ?? 'hmm-inline-logo mt-2';
+
+    const stack = createLogoStack(data.entries, {
+        stackHeight: options.stackHeight ?? 140,
+        stackWidth: options.stackWidth ?? 44,
+        stackClass: options.stackClass ?? 'hmm-inline-logo-stack',
+    });
+    container.appendChild(stack);
+
+    const summary = document.createElement('div');
+    summary.className = options.summaryClass ?? 'hmm-inline-logo-summary small text-muted';
+    const summaryPrefix = options.summaryPrefix ?? 'Top residues';
+    const topEntries = data.entries.slice(-3).reverse();
+    summary.textContent = `${summaryPrefix}: ${topEntries
+        .map((entry) => `${entry.symbol} (${formatPercentage(entry.height)})`)
+        .join(', ')}`;
+    container.appendChild(summary);
+
+    return container;
+}
+
+function inferConsensusSymbol(state, topResidue) {
+    const annotationSymbol = state.annotation.find((token) => /^[A-Za-z*]$/.test(token));
+    if (annotationSymbol) {
+        return annotationSymbol;
+    }
+    if (topResidue && topResidue.symbol) {
+        return topResidue.symbol;
+    }
+    return '';
+}
+
+function createLogoOverview(states, alphabet) {
+    const columns = [];
+    states.forEach((state) => {
+        if (!state.match_emissions || state.label.toUpperCase() === 'COMPO') {
+            return;
+        }
+        const data = buildLogoEntries(alphabet, state.match_emissions);
+        if (!data) {
+            return;
+        }
+        const column = document.createElement('div');
+        column.className = 'hmm-logo-column';
+
+        const stack = createLogoStack(data.entries, {
+            stackHeight: 160,
+            stackWidth: '2.75rem',
+            stackClass: 'hmm-logo-stack',
+        });
+        column.appendChild(stack);
+
+        const topResidue = data.entries[data.entries.length - 1];
+        const consensus = inferConsensusSymbol(state, topResidue) || '·';
+        const consensusEl = document.createElement('div');
+        consensusEl.className = 'hmm-logo-consensus';
+        consensusEl.textContent = consensus;
+        column.appendChild(consensusEl);
+
+        const label = document.createElement('div');
+        label.className = 'hmm-logo-position';
+        label.textContent = state.label;
+        column.appendChild(label);
+
+        const tooltipParts = [`State ${state.label}`];
+        if (topResidue) {
+            tooltipParts.push(`top ${topResidue.symbol} (${formatPercentage(topResidue.height)})`);
+        }
+        column.title = tooltipParts.join(' • ');
+        columns.push(column);
+    });
+
+    if (!columns.length) {
+        return null;
+    }
+
+    const section = document.createElement('section');
+    section.className = 'mt-4 hmm-logo-section';
+
+    const heading = document.createElement('h2');
+    heading.textContent = 'Sequence logo overview';
+    section.appendChild(heading);
+
+    const description = document.createElement('p');
+    description.className = 'text-muted small';
+    description.textContent = 'Letter heights reflect normalized emission weights derived from HMM scores (lower scores correspond to taller letters). Scroll horizontally to inspect the profile.';
+    section.appendChild(description);
+
+    const strip = document.createElement('div');
+    strip.className = 'hmm-logo-strip';
+    columns.forEach((column) => strip.appendChild(column));
+    section.appendChild(strip);
+
+    return section;
+}
+
+function formatNumber(value) {
+    if (!Number.isFinite(value)) {
+        return value.toString();
+    }
+    const abs = Math.abs(value);
+    if (abs >= 1000 || (abs > 0 && abs < 0.001)) {
+        return value.toExponential(2);
+    }
+    if (abs >= 100) {
+        return value.toFixed(0);
+    }
+    if (abs >= 10) {
+        return value.toFixed(1);
+    }
+    if (abs >= 1) {
+        return value.toFixed(2);
+    }
+    return value.toFixed(3);
+}
+
 function formatOptional(value) {
     if (value === null || value === undefined) {
         return '*';
     }
-    const text = value.toString();
-    return text;
+    if (typeof value === 'number') {
+        return formatNumber(value);
+    }
+    return value.toString();
 }
 
-function createMatrixSection(title, headers, values) {
+function createLegend(min, max) {
+    const legend = document.createElement('div');
+    legend.className = 'hmm-legend mt-2';
+
+    const gradient = document.createElement('div');
+    gradient.className = 'hmm-legend-gradient';
+    legend.appendChild(gradient);
+
+    if (min < 0 && max > 0) {
+        const zeroMarker = document.createElement('span');
+        zeroMarker.className = 'hmm-legend-zero';
+        const zeroPercent = (-min) / (max - min);
+        zeroMarker.style.left = `${zeroPercent * 100}%`;
+        gradient.appendChild(zeroMarker);
+    }
+
+    const labels = document.createElement('div');
+    labels.className = 'd-flex justify-content-between text-muted small mt-1';
+
+    const minLabel = document.createElement('span');
+    minLabel.textContent = formatOptional(min);
+    labels.appendChild(minLabel);
+
+    const maxLabel = document.createElement('span');
+    maxLabel.textContent = formatOptional(max);
+    labels.appendChild(maxLabel);
+
+    legend.appendChild(labels);
+
+    return legend;
+}
+
+function createValueCell(value, min, max) {
+    const td = document.createElement('td');
+    td.className = 'hmm-matrix-cell';
+
+    const span = document.createElement('span');
+    span.className = 'hmm-matrix-value';
+    span.textContent = formatOptional(value);
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        td.title = value.toString();
+        if (max !== null && min !== null && max > min) {
+            const normalized = (value - min) / (max - min);
+            const clamped = Math.min(Math.max(normalized, 0), 1);
+            const bar = document.createElement('div');
+            bar.className = 'hmm-matrix-bar';
+            const widthPercent = Math.max(0.06, clamped) * 100;
+            bar.style.width = `${widthPercent}%`;
+            const hue = 205 - clamped * 190;
+            const lightness = 78 - clamped * 32;
+            bar.style.backgroundColor = `hsl(${hue}, 75%, ${lightness}%)`;
+            td.appendChild(bar);
+
+            if (clamped > 0.65) {
+                span.classList.add('text-white');
+            }
+        }
+    } else {
+        td.title = 'Value unavailable';
+        td.classList.add('hmm-matrix-cell-empty');
+    }
+
+    td.appendChild(span);
+    return td;
+}
+
+function createMatrixSection(title, headers, values, options = {}) {
     const section = document.createElement('div');
     section.className = 'mt-3';
     const heading = document.createElement('h3');
     heading.className = 'h5';
     heading.textContent = title;
     section.appendChild(heading);
+
+    if (options.showLogo) {
+        const logo = createInlineLogo(headers, values, options.logoOptions ?? {});
+        if (logo) {
+            section.appendChild(logo);
+        }
+    }
 
     const wrapper = document.createElement('div');
     wrapper.className = 'table-responsive';
@@ -65,15 +389,23 @@ function createMatrixSection(title, headers, values) {
 
     const tbody = document.createElement('tbody');
     const row = document.createElement('tr');
+    const numericValues = values.filter(
+        (value) => typeof value === 'number' && Number.isFinite(value)
+    );
+    const min = numericValues.length ? Math.min(...numericValues) : null;
+    const max = numericValues.length ? Math.max(...numericValues) : null;
+
     values.forEach((value) => {
-        const td = document.createElement('td');
-        td.textContent = formatOptional(value);
-        row.appendChild(td);
+        row.appendChild(createValueCell(value, min, max));
     });
     tbody.appendChild(row);
     table.appendChild(tbody);
     wrapper.appendChild(table);
     section.appendChild(wrapper);
+
+    if (min !== null && max !== null && max !== min) {
+        section.appendChild(createLegend(min, max));
+    }
 
     return section;
 }
@@ -127,6 +459,11 @@ function renderHmm(hmm) {
 
     output.appendChild(alphabetSection);
 
+    const logoOverview = createLogoOverview(hmm.states, hmm.alphabet);
+    if (logoOverview) {
+        output.appendChild(logoOverview);
+    }
+
     const statesSection = document.createElement('section');
     statesSection.className = 'mt-4';
     const statesTitle = document.createElement('h2');
@@ -140,12 +477,33 @@ function renderHmm(hmm) {
             details.open = true;
         }
         const summary = document.createElement('summary');
-        const annotation = state.annotation.length ? ` (${state.annotation.join(' ')})` : '';
-        summary.textContent = `${state.label}${annotation}`;
+        const summaryParts = [state.label];
+        if (state.annotation.length) {
+            summaryParts.push(state.annotation.join(' '));
+        }
+        const matchTop = getTopResidue(hmm.alphabet, state.match_emissions);
+        if (matchTop) {
+            summaryParts.push(`top ${matchTop.symbol} (${formatPercentage(matchTop.height)})`);
+        }
+        summary.textContent = summaryParts.join(' • ');
         details.appendChild(summary);
 
-        details.appendChild(createMatrixSection('Match emissions', hmm.alphabet, state.match_emissions));
-        details.appendChild(createMatrixSection('Insert emissions', hmm.alphabet, state.insert_emissions));
+        details.appendChild(
+            createMatrixSection('Match emissions', hmm.alphabet, state.match_emissions, {
+                showLogo: true,
+                logoOptions: {
+                    summaryPrefix: 'Top match residues',
+                },
+            })
+        );
+        details.appendChild(
+            createMatrixSection('Insert emissions', hmm.alphabet, state.insert_emissions, {
+                showLogo: true,
+                logoOptions: {
+                    summaryPrefix: 'Top insert residues',
+                },
+            })
+        );
         details.appendChild(createMatrixSection('Transitions', hmm.transition_order, state.transitions));
 
         statesSection.appendChild(details);
