@@ -12,3 +12,4 @@ cp -r pkg/ dist/
 cp -r static/ dist/
 cp -r index.html dist/
 cp -r faq.html dist/
+cp -r hmm.html dist/

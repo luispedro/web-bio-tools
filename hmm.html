@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HMM Visualizer</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="static/style.css">
+    <style>
+        .hmm-section {
+            margin-top: 2rem;
+        }
+        .annotations {
+            font-family: monospace;
+        }
+        .table-sm td,
+        .table-sm th {
+            padding: 0.25rem 0.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        textarea#hmm-input {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="mb-0">Hidden Markov Model Viewer</h1>
+            <a class="btn btn-link" href="index.html">&larr; Back to alignments</a>
+        </div>
+        <p class="lead">Paste an HMM in <code>.hmm</code> format below to inspect its structure.</p>
+        <div class="form-group">
+            <label for="hmm-input">HMM profile</label>
+            <textarea id="hmm-input" class="form-control" rows="12" placeholder="Paste your HMM profile here..."></textarea>
+        </div>
+        <button id="parse-btn" class="btn btn-primary">Parse HMM</button>
+        <button id="load-example" class="btn btn-secondary ml-2">Load example</button>
+        <div id="error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+        <div id="result" class="mt-4" style="display: none;">
+            <h2>Parsed HMM</h2>
+            <div id="header-section" class="hmm-section"></div>
+            <div id="stats-section" class="hmm-section"></div>
+            <div id="alphabet-section" class="hmm-section"></div>
+            <div id="composition-section" class="hmm-section"></div>
+            <div id="nodes-section" class="hmm-section"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { parse_hmm } from './pkg/web_bio_tools.js';
+
+        const exampleHmm = `HMMER3/f [3.3.2 | Nov 2020]
+NAME  SPHERE-III.008_786
+LENG  40
+ALPH  amino
+RF    no
+MM    no
+CONS  yes
+CS    no
+MAP   yes
+DATE  Wed Mar  9 22:55:43 2022
+NSEQ  8
+EFFN  1.027344
+CKSUM 3369357532
+STATS LOCAL MSV       -7.7112  0.71945
+STATS LOCAL VITERBI   -8.0660  0.71945
+STATS LOCAL FORWARD   -4.8766  0.71945
+HMM          A        C        D        E        F        G        H        I        K        L        M        N        P        Q        R        S        T        V        W        Y   
+            m->m     m->i     m->d     i->m     i->i     d->m     d->d
+  COMPO   2.51059  4.74709  3.57325  3.49900  3.13972  2.58286  4.46848  2.43211  2.86022  2.62783  3.07860  3.82870  2.76073  3.14786  2.41260  3.00295  2.21918  2.76373  5.45000  4.20464
+          2.68618  4.42225  2.77519  2.73123  3.46354  2.40513  3.72494  3.29354  2.67741  2.69355  4.24690  2.90347  2.73739  3.18146  2.89801  2.37887  2.77519  2.98518  4.58477  3.61503
+          0.02242  4.20466  4.92701  0.61958  0.77255  0.00000        *
+      1   0.62414  4.39414  3.83570  3.65844  4.41853  3.20699  4.63588  3.59667  3.68435  3.46158  4.46673  3.71258  3.97885  3.99630  3.90188  2.74678  3.04796  3.19104  5.81068  4.65377      1 A - - -
+          2.68618  4.42225  2.77519  2.73123  3.46354  2.40513  3.72494  3.29354  2.67741  2.69355  4.24690  2.90347  2.73739  3.18146  2.89801  2.37887  2.77519  2.98518  4.58477  3.61503
+          0.02242  4.20466  4.92701  0.61958  0.77255  0.48576  0.95510
+//`;
+
+        function formatValue(value) {
+            if (value === null || value === undefined) {
+                return '*';
+            }
+            return Number(value).toFixed(5);
+        }
+
+        function createTable(headers, rows) {
+            const table = document.createElement('table');
+            table.className = 'table table-sm table-bordered table-striped';
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headers.forEach((header) => {
+                const th = document.createElement('th');
+                th.scope = 'col';
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            rows.forEach((row) => {
+                const tr = document.createElement('tr');
+                row.forEach((cell) => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            return table;
+        }
+
+        function renderHeaderSection(profile) {
+            const container = document.getElementById('header-section');
+            container.innerHTML = '<h3>Header</h3>';
+            if (profile.header.length === 0) {
+                container.innerHTML += '<p class="text-muted">No header fields found.</p>';
+                return;
+            }
+            const rows = profile.header.map((item) => [item.key, item.value]);
+            container.appendChild(createTable(['Field', 'Value'], rows));
+        }
+
+        function renderStatsSection(profile) {
+            const container = document.getElementById('stats-section');
+            container.innerHTML = '<h3>Statistics</h3>';
+            if (profile.stats.length === 0) {
+                container.innerHTML += '<p class="text-muted">No STATS lines found.</p>';
+                return;
+            }
+            const rows = profile.stats.map((stat) => [
+                stat.scope,
+                stat.method,
+                stat.raw_values.join(' '),
+            ]);
+            container.appendChild(createTable(['Scope', 'Method', 'Values'], rows));
+        }
+
+        function renderAlphabetSection(profile) {
+            const container = document.getElementById('alphabet-section');
+            container.innerHTML = '<h3>Alphabet</h3>';
+            const alphabetList = document.createElement('p');
+            alphabetList.className = 'font-monospace';
+            alphabetList.textContent = profile.alphabet.join('  ');
+            container.appendChild(alphabetList);
+
+            if (profile.transition_labels.length > 0) {
+                const transitions = document.createElement('p');
+                transitions.className = 'font-monospace';
+                transitions.innerHTML = '<strong>Transition labels:</strong> ' + profile.transition_labels.join('  ');
+                container.appendChild(transitions);
+            }
+        }
+
+        function renderCompositionSection(profile) {
+            const container = document.getElementById('composition-section');
+            container.innerHTML = '<h3>Background composition</h3>';
+            if (!profile.composition) {
+                container.innerHTML += '<p class="text-muted">No COMPO section found.</p>';
+                return;
+            }
+            const compo = profile.composition;
+            const rows = [
+                ['Match', ...compo.match_emissions.map(formatValue)],
+                ['Insert', ...compo.insert_emissions.map(formatValue)],
+            ];
+            const table = createTable(['', ...profile.alphabet], rows);
+            container.appendChild(table);
+
+            if (profile.transition_labels.length > 0) {
+                const transitionRows = [
+                    ['Transitions', ...compo.transitions.map(formatValue)],
+                ];
+                container.appendChild(
+                    createTable(['', ...profile.transition_labels], transitionRows)
+                );
+            }
+        }
+
+        function renderNodesSection(profile) {
+            const container = document.getElementById('nodes-section');
+            container.innerHTML = '<h3>Match states</h3>';
+            if (profile.nodes.length === 0) {
+                container.innerHTML += '<p class="text-muted">No nodes parsed from the HMM body.</p>';
+                return;
+            }
+
+            profile.nodes.forEach((node) => {
+                const details = document.createElement('details');
+                details.open = profile.nodes.length <= 5;
+                const summary = document.createElement('summary');
+                summary.textContent = `Node ${node.index}`;
+                details.appendChild(summary);
+
+                const matchTable = createTable(['', ...profile.alphabet], [
+                    ['Match', ...node.match_emissions.map(formatValue)],
+                    ['Insert', ...node.insert_emissions.map(formatValue)],
+                ]);
+                details.appendChild(matchTable);
+
+                if (profile.transition_labels.length > 0) {
+                    const transitionTable = createTable(['', ...profile.transition_labels], [
+                        ['Transitions', ...node.transitions.map(formatValue)],
+                    ]);
+                    details.appendChild(transitionTable);
+                }
+
+                if (node.annotations.length > 0) {
+                    const annotations = document.createElement('p');
+                    annotations.className = 'annotations';
+                    annotations.innerHTML = '<strong>Annotations:</strong> ' + node.annotations.join(' ');
+                    details.appendChild(annotations);
+                }
+
+                container.appendChild(details);
+            });
+        }
+
+        function renderProfile(profile) {
+            renderHeaderSection(profile);
+            renderStatsSection(profile);
+            renderAlphabetSection(profile);
+            renderCompositionSection(profile);
+            renderNodesSection(profile);
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.classList.remove('d-none');
+            document.getElementById('result').style.display = 'none';
+        }
+
+        function clearError() {
+            const error = document.getElementById('error');
+            error.textContent = '';
+            error.classList.add('d-none');
+        }
+
+        async function setup() {
+            await init();
+
+            document.getElementById('parse-btn').addEventListener('click', async () => {
+                clearError();
+                const text = document.getElementById('hmm-input').value;
+                if (!text.trim()) {
+                    showError('Please paste an HMM profile before parsing.');
+                    return;
+                }
+                try {
+                    const parsed = await parse_hmm(text);
+                    renderProfile(parsed);
+                    document.getElementById('result').style.display = 'block';
+                } catch (err) {
+                    console.error(err);
+                    showError(err instanceof Error ? err.message : String(err));
+                }
+            });
+
+            document.getElementById('load-example').addEventListener('click', () => {
+                document.getElementById('hmm-input').value = exampleHmm;
+            });
+        }
+
+        setup();
+    </script>
+</body>
+</html>

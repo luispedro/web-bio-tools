@@ -3,10 +3,12 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
 mod alignment;
+mod hmm;
 #[cfg(all(feature = "python", not(target_arch = "wasm32")))]
 mod python;
 
 pub use alignment::AlignmentResult;
+pub use hmm::HmmProfile;
 
 #[wasm_bindgen]
 pub fn smith_waterman(seq1: &str, seq2: &str) -> JsValue {
@@ -73,4 +75,11 @@ pub fn needleman_wunsch_blosum62(
 ) -> JsValue {
     let result = alignment::needleman_wunsch_blosum62_internal(seq1, seq2, gap_open, gap_extend);
     to_value(&result).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn parse_hmm(text: &str) -> Result<JsValue, JsValue> {
+    let profile = hmm::parse_hmm(text).map_err(|e| JsValue::from_str(&e))?;
+    to_value(&profile)
+        .map_err(|err| JsValue::from_str(&format!("Failed to serialise HMM profile: {err}")))
 }
