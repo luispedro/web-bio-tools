@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HMM Viewer - Web Bio Tools</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h1>Hidden Markov Model Viewer</h1>
+    <p>
+        Paste a profile HMM in HMMER's <code>.hmm</code> format below to inspect its fields.
+    </p>
+    <form id="hmm-form" class="mb-3">
+        <div class="form-group">
+            <label for="hmm-input">HMM input</label>
+            <textarea id="hmm-input" class="form-control" rows="12" placeholder="Paste your HMM text here"></textarea>
+            <small class="form-text text-muted">
+                You can <a href="#" id="load-example">load an example HMM</a> to try it out.
+            </small>
+        </div>
+        <button type="submit" class="btn btn-primary">Parse HMM</button>
+        <a href="index.html" class="btn btn-link">Back to main tools</a>
+    </form>
+    <div id="hmm-error" class="alert alert-danger" style="display:none"></div>
+    <div id="hmm-output"></div>
+</div>
+
+<script type="module">
+import init, { parse_hmm } from './pkg/web_bio_tools.js';
+
+const exampleUrl = 'static/hmm-example.hmm';
+
+function formatOptional(value) {
+    if (value === null || value === undefined) {
+        return '*';
+    }
+    const text = value.toString();
+    return text;
+}
+
+function createMatrixSection(title, headers, values) {
+    const section = document.createElement('div');
+    section.className = 'mt-3';
+    const heading = document.createElement('h3');
+    heading.className = 'h5';
+    heading.textContent = title;
+    section.appendChild(heading);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-responsive';
+    const table = document.createElement('table');
+    table.className = 'table table-bordered table-sm mb-0';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headers.forEach((header) => {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = header;
+        headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const row = document.createElement('tr');
+    values.forEach((value) => {
+        const td = document.createElement('td');
+        td.textContent = formatOptional(value);
+        row.appendChild(td);
+    });
+    tbody.appendChild(row);
+    table.appendChild(tbody);
+    wrapper.appendChild(table);
+    section.appendChild(wrapper);
+
+    return section;
+}
+
+function renderHmm(hmm) {
+    const output = document.getElementById('hmm-output');
+    output.innerHTML = '';
+
+    const headerSection = document.createElement('section');
+    const headerTitle = document.createElement('h2');
+    headerTitle.textContent = 'Header';
+    headerSection.appendChild(headerTitle);
+
+    const formatLine = document.createElement('p');
+    formatLine.innerHTML = `<strong>Format:</strong> ${hmm.format_line}`;
+    headerSection.appendChild(formatLine);
+
+    if (hmm.metadata.length > 0) {
+        const table = document.createElement('table');
+        table.className = 'table table-sm table-striped';
+        const tbody = document.createElement('tbody');
+        hmm.metadata.forEach((field) => {
+            const tr = document.createElement('tr');
+            const th = document.createElement('th');
+            th.scope = 'row';
+            th.textContent = field.key;
+            const td = document.createElement('td');
+            td.textContent = field.value;
+            tr.appendChild(th);
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        headerSection.appendChild(table);
+    }
+    output.appendChild(headerSection);
+
+    const alphabetSection = document.createElement('section');
+    alphabetSection.className = 'mt-4';
+    const alphabetTitle = document.createElement('h2');
+    alphabetTitle.textContent = 'Model layout';
+    alphabetSection.appendChild(alphabetTitle);
+
+    const alphabetList = document.createElement('p');
+    alphabetList.innerHTML = `<strong>Alphabet:</strong> ${hmm.alphabet.join(', ')}`;
+    alphabetSection.appendChild(alphabetList);
+
+    const transitionList = document.createElement('p');
+    transitionList.innerHTML = `<strong>Transition fields:</strong> ${hmm.transition_order.join(', ')}`;
+    alphabetSection.appendChild(transitionList);
+
+    output.appendChild(alphabetSection);
+
+    const statesSection = document.createElement('section');
+    statesSection.className = 'mt-4';
+    const statesTitle = document.createElement('h2');
+    statesTitle.textContent = 'States';
+    statesSection.appendChild(statesTitle);
+
+    hmm.states.forEach((state, index) => {
+        const details = document.createElement('details');
+        details.className = 'mb-3';
+        if (index < 3) {
+            details.open = true;
+        }
+        const summary = document.createElement('summary');
+        const annotation = state.annotation.length ? ` (${state.annotation.join(' ')})` : '';
+        summary.textContent = `${state.label}${annotation}`;
+        details.appendChild(summary);
+
+        details.appendChild(createMatrixSection('Match emissions', hmm.alphabet, state.match_emissions));
+        details.appendChild(createMatrixSection('Insert emissions', hmm.alphabet, state.insert_emissions));
+        details.appendChild(createMatrixSection('Transitions', hmm.transition_order, state.transitions));
+
+        statesSection.appendChild(details);
+    });
+
+    output.appendChild(statesSection);
+}
+
+async function handleSubmit(event) {
+    event.preventDefault();
+    const text = document.getElementById('hmm-input').value;
+    const errorBox = document.getElementById('hmm-error');
+    errorBox.style.display = 'none';
+    errorBox.textContent = '';
+
+    try {
+        const hmm = parse_hmm(text);
+        renderHmm(hmm);
+    } catch (error) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = error instanceof Error ? error.message : String(error);
+        document.getElementById('hmm-output').innerHTML = '';
+    }
+}
+
+async function loadExample(event) {
+    event.preventDefault();
+    try {
+        const response = await fetch(exampleUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to load example HMM: ${response.status} ${response.statusText}`);
+        }
+        const text = await response.text();
+        document.getElementById('hmm-input').value = text.trim();
+    } catch (error) {
+        const errorBox = document.getElementById('hmm-error');
+        errorBox.style.display = 'block';
+        errorBox.textContent = error instanceof Error ? error.message : String(error);
+    }
+}
+
+async function main() {
+    await init();
+    document.getElementById('hmm-form').addEventListener('submit', handleSubmit);
+    document.getElementById('load-example').addEventListener('click', loadExample);
+}
+
+main();
+</script>
+</body>
+</html>
