@@ -3,6 +3,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
 mod alignment;
+mod fna2faa;
 mod hmm;
 #[cfg(all(feature = "python", not(target_arch = "wasm32")))]
 mod python;
@@ -80,4 +81,25 @@ pub fn needleman_wunsch_blosum62(
 pub fn parse_hmm(text: &str) -> Result<JsValue, JsValue> {
     let hmm = hmm::parse_hmm(text).map_err(|err| JsValue::from_str(&err))?;
     to_value(&hmm).map_err(|err| JsValue::from_str(&format!("Failed to serialize HMM: {}", err)))
+}
+
+#[wasm_bindgen]
+pub fn translate_frame(seq: &str, frame: i32, stop_at_first: bool) -> Result<JsValue, JsValue> {
+    if frame < -3 || frame > 2 {
+        return Err(JsValue::from_str("Frame must be between -3 and 2."));
+    }
+
+    let encoder = fna2faa::CodonEncoder::mk_encoder();
+    let result = fna2faa::translate_frame_internal(&encoder, seq, frame as i8, stop_at_first)
+        .map_err(|err| JsValue::from_str(&err))?;
+    to_value(&result)
+        .map_err(|err| JsValue::from_str(&format!("Failed to serialize translation: {}", err)))
+}
+
+#[wasm_bindgen]
+pub fn translate_all_frames(seq: &str, stop_at_first: bool) -> Result<JsValue, JsValue> {
+    let encoder = fna2faa::CodonEncoder::mk_encoder();
+    let result = fna2faa::translate_all_frames_internal(&encoder, seq, stop_at_first);
+    to_value(&result)
+        .map_err(|err| JsValue::from_str(&format!("Failed to serialize translation: {}", err)))
 }
