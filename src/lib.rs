@@ -3,6 +3,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
 mod alignment;
+mod hmm;
 #[cfg(all(feature = "python", not(target_arch = "wasm32")))]
 mod python;
 
@@ -73,4 +74,10 @@ pub fn needleman_wunsch_blosum62(
 ) -> JsValue {
     let result = alignment::needleman_wunsch_blosum62_internal(seq1, seq2, gap_open, gap_extend);
     to_value(&result).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn parse_hmm(text: &str) -> Result<JsValue, JsValue> {
+    let hmm = hmm::parse_hmm(text).map_err(|err| JsValue::from_str(&err))?;
+    to_value(&hmm).map_err(|err| JsValue::from_str(&format!("Failed to serialize HMM: {}", err)))
 }
