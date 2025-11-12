@@ -1,6 +1,8 @@
-use pyo3::prelude::*;
 use crate::alignment;
+use crate::translation;
 use crate::AlignmentResult;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 
 #[pyclass]
 pub struct PyAlignmentResult {
@@ -45,11 +47,24 @@ fn smith_waterman_custom(
     gap_open: f64,
     gap_extend: f64,
 ) -> PyAlignmentResult {
-    alignment::smith_waterman_internal(seq1, seq2, match_score, mismatch_penalty, gap_open, gap_extend).into()
+    alignment::smith_waterman_internal(
+        seq1,
+        seq2,
+        match_score,
+        mismatch_penalty,
+        gap_open,
+        gap_extend,
+    )
+    .into()
 }
 
 #[pyfunction]
-fn smith_waterman_blosum62(seq1: &str, seq2: &str, gap_open: f64, gap_extend: f64) -> PyAlignmentResult {
+fn smith_waterman_blosum62(
+    seq1: &str,
+    seq2: &str,
+    gap_open: f64,
+    gap_extend: f64,
+) -> PyAlignmentResult {
     alignment::smith_waterman_blosum62_internal(seq1, seq2, gap_open, gap_extend).into()
 }
 
@@ -67,12 +82,31 @@ fn needleman_wunsch_custom(
     gap_open: f64,
     gap_extend: f64,
 ) -> PyAlignmentResult {
-    alignment::needleman_wunsch_internal(seq1, seq2, match_score, mismatch_penalty, gap_open, gap_extend).into()
+    alignment::needleman_wunsch_internal(
+        seq1,
+        seq2,
+        match_score,
+        mismatch_penalty,
+        gap_open,
+        gap_extend,
+    )
+    .into()
 }
 
 #[pyfunction]
-fn needleman_wunsch_blosum62(seq1: &str, seq2: &str, gap_open: f64, gap_extend: f64) -> PyAlignmentResult {
+fn needleman_wunsch_blosum62(
+    seq1: &str,
+    seq2: &str,
+    gap_open: f64,
+    gap_extend: f64,
+) -> PyAlignmentResult {
     alignment::needleman_wunsch_blosum62_internal(seq1, seq2, gap_open, gap_extend).into()
+}
+
+#[pyfunction]
+fn translate_dna_frame(seq: &str, frame: i8, stop_at_first_stop: bool) -> PyResult<String> {
+    translation::translate_frame(seq, frame, stop_at_first_stop)
+        .map_err(|err| PyErr::new::<PyValueError, _>(err))
 }
 
 #[pymodule]
@@ -84,5 +118,6 @@ fn web_bio_tools(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(needleman_wunsch, m)?)?;
     m.add_function(wrap_pyfunction!(needleman_wunsch_custom, m)?)?;
     m.add_function(wrap_pyfunction!(needleman_wunsch_blosum62, m)?)?;
+    m.add_function(wrap_pyfunction!(translate_dna_frame, m)?)?;
     Ok(())
 }
