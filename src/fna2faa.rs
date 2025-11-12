@@ -233,6 +233,12 @@ pub fn translate_frame_internal(
         _ => return Err(format!("Invalid frame: {}", frame)),
     };
 
+    let reported_frame = if is_reverse {
+        -((offset as i8) + 1)
+    } else {
+        (offset as i8) + 1
+    };
+
     let seq_bytes = sequence.as_bytes();
     let mut buffer;
     let working = if is_reverse {
@@ -242,7 +248,7 @@ pub fn translate_frame_internal(
     } else {
         if seq_bytes.len() < offset {
             return Ok(FrameTranslation {
-                frame,
+                frame: reported_frame,
                 amino_acids: String::new(),
                 stops: Vec::new(),
                 ambiguous: Vec::new(),
@@ -281,7 +287,7 @@ pub fn translate_frame_internal(
     let amino_acids = String::from_utf8(amino_acids).unwrap_or_default();
 
     Ok(FrameTranslation {
-        frame,
+        frame: reported_frame,
         amino_acids,
         stops,
         ambiguous: ambiguous_positions,
@@ -335,6 +341,7 @@ mod tests {
         assert_eq!(result.amino_acids, "MA");
         assert!(result.stops.is_empty());
         assert!(result.ambiguous.is_empty());
+        assert_eq!(result.frame, 1);
     }
 
     #[test]
@@ -342,6 +349,7 @@ mod tests {
         let encoder = CodonEncoder::mk_encoder();
         let result = translate_frame_internal(&encoder, "ATGGCC", -1, false).unwrap();
         assert_eq!(result.amino_acids, "GH");
+        assert_eq!(result.frame, -1);
     }
 
     #[test]
@@ -365,6 +373,7 @@ mod tests {
         let encoder = CodonEncoder::mk_encoder();
         let summary = translate_all_frames_internal(&encoder, "ATGGCC", false);
         assert_eq!(summary.frames.len(), 6);
-        assert_eq!(summary.frames[0].frame, 0);
+        assert_eq!(summary.frames[0].frame, 1);
+        assert_eq!(summary.frames[3].frame, -1);
     }
 }

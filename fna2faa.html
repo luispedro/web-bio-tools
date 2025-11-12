@@ -25,10 +25,13 @@
             <div class="form-group col-md-4">
                 <label for="frame-option">Reading frame</label>
                 <select id="frame-option" class="form-control">
-                    <option value="all" selected>All frames (1–3)</option>
-                    <option value="1">Frame 1</option>
-                    <option value="2">Frame 2</option>
-                    <option value="3">Frame 3</option>
+                    <option value="all" selected>All frames (+1 to -3)</option>
+                    <option value="+1">Frame +1</option>
+                    <option value="+2">Frame +2</option>
+                    <option value="+3">Frame +3</option>
+                    <option value="-1">Frame -1</option>
+                    <option value="-2">Frame -2</option>
+                    <option value="-3">Frame -3</option>
                 </select>
             </div>
             <div class="form-group col-md-4 align-self-end">
@@ -111,6 +114,10 @@ function wrapSequence(sequence, width = 60) {
     return parts.join('\n');
 }
 
+function formatFrameLabel(frameNumber) {
+    return frameNumber > 0 ? `Frame +${frameNumber}` : `Frame ${frameNumber}`;
+}
+
 function renderTranslation(container, recordName, frameLabel, translation) {
     const section = document.createElement('section');
     section.className = 'translation-entry';
@@ -157,24 +164,40 @@ async function bootstrap() {
             for (const [index, record] of records.entries()) {
                 const labelBase = record.name || `Sequence ${index + 1}`;
                 if (frameSelection === 'all') {
-                    const translations = translate_dna_all_frames(record.sequence, stopAtFirstStop);
-                    const frameTranslations = Array.isArray(translations)
-                        ? translations
-                        : Array.from(translations);
-                    frameTranslations
-                        .map((value) => (typeof value === 'string' ? value : String(value)))
-                        .forEach((translation, frameIndex) => {
-                            renderTranslation(
-                                resultsContainer,
-                                labelBase,
-                                `Frame ${frameIndex + 1}`,
-                                translation
-                            );
-                        });
+                    const summary = translate_dna_all_frames(record.sequence, stopAtFirstStop);
+                    const frames = summary && summary.frames;
+                    if (!Array.isArray(frames)) {
+                        throw new Error('Unexpected translation summary format returned from translator.');
+                    }
+                    frames.forEach((entry) => {
+                        const frameNumber = Number(entry.frame);
+                        const translation =
+                            typeof entry.amino_acids === 'string'
+                                ? entry.amino_acids
+                                : String(entry.amino_acids);
+                        renderTranslation(
+                            resultsContainer,
+                            labelBase,
+                            formatFrameLabel(frameNumber),
+                            translation
+                        );
+                    });
                 } else {
                     const frameNumber = Number.parseInt(frameSelection, 10);
-                    const translation = translate_dna_frame(record.sequence, frameNumber, stopAtFirstStop);
-                    renderTranslation(resultsContainer, labelBase, `Frame ${frameNumber}`, translation);
+                    if (!Number.isFinite(frameNumber) || frameNumber === 0) {
+                        throw new Error(`Invalid frame selection: ${frameSelection}`);
+                    }
+                    const translation = translate_dna_frame(
+                        record.sequence,
+                        frameNumber,
+                        stopAtFirstStop
+                    );
+                    renderTranslation(
+                        resultsContainer,
+                        labelBase,
+                        formatFrameLabel(frameNumber),
+                        translation
+                    );
                 }
             }
             outputCard.style.display = 'block';
