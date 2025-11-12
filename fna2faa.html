@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DNA to Protein Translator - Web Bio Tools</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h1>DNA to Protein Translator</h1>
+    <p>
+        Paste nucleotide FASTA entries or raw DNA text below to translate coding sequences
+        into amino acids directly in your browser.
+    </p>
+    <form id="translation-form" class="mb-3">
+        <div class="form-group">
+            <label for="fna-input">Nucleotide input</label>
+            <textarea id="fna-input" class="form-control" rows="12" placeholder="Paste FASTA or raw nucleotide sequence"></textarea>
+            <small class="form-text text-muted">
+                Supports multiple FASTA entries or raw text. Ambiguous nucleotides will translate to <code>X</code>.
+            </small>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                <label for="frame-option">Reading frame</label>
+                <select id="frame-option" class="form-control">
+                    <option value="all" selected>All frames (1–3)</option>
+                    <option value="1">Frame 1</option>
+                    <option value="2">Frame 2</option>
+                    <option value="3">Frame 3</option>
+                </select>
+            </div>
+            <div class="form-group col-md-4 align-self-end">
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="stop-option">
+                    <label class="form-check-label" for="stop-option">Stop at first stop codon</label>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Translate</button>
+        <a href="index.html" class="btn btn-link">Back to main tools</a>
+        <a href="hmm.html" class="btn btn-link">HMM viewer</a>
+    </form>
+    <div id="translation-error" class="alert alert-danger" style="display:none"></div>
+    <div id="translation-output" class="card" style="display:none">
+        <div class="card-body">
+            <h2 class="h5 card-title">Translated sequences</h2>
+            <div id="translation-results" class="translation-results"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import init, { translate_dna_all_frames, translate_dna_frame } from './pkg/web_bio_tools.js';
+
+function parseFastaRecords(text) {
+    const trimmed = text.trim();
+    if (!trimmed) {
+        return [];
+    }
+    const lines = trimmed.split(/\r?\n/);
+    const records = [];
+    let currentName = null;
+    let currentSeq = [];
+    let sawHeader = false;
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+            continue;
+        }
+        if (line.startsWith('>')) {
+            if (currentName !== null) {
+                records.push({
+                    name: currentName,
+                    sequence: currentSeq.join(''),
+                });
+            }
+            currentName = line.substring(1).trim() || `Sequence ${records.length + 1}`;
+            currentSeq = [];
+            sawHeader = true;
+        } else {
+            currentSeq.push(line.replace(/\s+/g, ''));
+        }
+    }
+
+    if (currentName !== null) {
+        records.push({
+            name: currentName,
+            sequence: currentSeq.join(''),
+        });
+    } else if (!sawHeader) {
+        const sequence = lines.join('').replace(/\s+/g, '');
+        if (sequence.length > 0) {
+            records.push({ name: 'Sequence 1', sequence });
+        }
+    }
+
+    return records;
+}
+
+function wrapSequence(sequence, width = 60) {
+    if (!sequence) {
+        return '';
+    }
+    const parts = [];
+    for (let i = 0; i < sequence.length; i += width) {
+        parts.push(sequence.slice(i, i + width));
+    }
+    return parts.join('\n');
+}
+
+function renderTranslation(container, recordName, frameLabel, translation) {
+    const section = document.createElement('section');
+    section.className = 'translation-entry';
+
+    const heading = document.createElement('h3');
+    heading.className = 'h6 translation-entry-title';
+    heading.textContent = `${recordName} — ${frameLabel}`;
+    section.appendChild(heading);
+
+    const pre = document.createElement('pre');
+    pre.className = 'translation-sequence';
+    pre.textContent = wrapSequence(translation);
+    section.appendChild(pre);
+
+    container.appendChild(section);
+}
+
+async function bootstrap() {
+    await init();
+    const form = document.getElementById('translation-form');
+    const outputCard = document.getElementById('translation-output');
+    const resultsContainer = document.getElementById('translation-results');
+    const errorBox = document.getElementById('translation-error');
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+        resultsContainer.innerHTML = '';
+        outputCard.style.display = 'none';
+
+        const inputValue = document.getElementById('fna-input').value;
+        const records = parseFastaRecords(inputValue);
+        if (records.length === 0) {
+            errorBox.textContent = 'Please provide at least one nucleotide sequence to translate.';
+            errorBox.style.display = 'block';
+            return;
+        }
+
+        const frameSelection = document.getElementById('frame-option').value;
+        const stopAtFirstStop = document.getElementById('stop-option').checked;
+
+        try {
+            for (const [index, record] of records.entries()) {
+                const labelBase = record.name || `Sequence ${index + 1}`;
+                if (frameSelection === 'all') {
+                    const translations = translate_dna_all_frames(record.sequence, stopAtFirstStop);
+                    const frameTranslations = Array.isArray(translations)
+                        ? translations
+                        : Array.from(translations);
+                    frameTranslations
+                        .map((value) => (typeof value === 'string' ? value : String(value)))
+                        .forEach((translation, frameIndex) => {
+                            renderTranslation(
+                                resultsContainer,
+                                labelBase,
+                                `Frame ${frameIndex + 1}`,
+                                translation
+                            );
+                        });
+                } else {
+                    const frameNumber = Number.parseInt(frameSelection, 10);
+                    const translation = translate_dna_frame(record.sequence, frameNumber, stopAtFirstStop);
+                    renderTranslation(resultsContainer, labelBase, `Frame ${frameNumber}`, translation);
+                }
+            }
+            outputCard.style.display = 'block';
+        } catch (error) {
+            console.error('Translation failed:', error);
+            errorBox.textContent = error instanceof Error ? error.message : String(error);
+            errorBox.style.display = 'block';
+        }
+    });
+}
+
+bootstrap().catch((error) => {
+    const errorBox = document.getElementById('translation-error');
+    if (errorBox) {
+        errorBox.textContent = 'Failed to initialize the translation module. Please refresh and try again.';
+        errorBox.style.display = 'block';
+    }
+    console.error('Failed to initialize WebAssembly module', error);
+});
+</script>
+</body>
+</html>

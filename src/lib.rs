@@ -7,8 +7,10 @@ mod fna2faa;
 mod hmm;
 #[cfg(all(feature = "python", not(target_arch = "wasm32")))]
 mod python;
+mod translation;
 
 pub use alignment::AlignmentResult;
+pub use translation::{translate_all_frames, translate_frame};
 
 #[wasm_bindgen]
 pub fn smith_waterman(seq1: &str, seq2: &str) -> JsValue {
@@ -84,22 +86,19 @@ pub fn parse_hmm(text: &str) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn translate_frame(seq: &str, frame: i32, stop_at_first: bool) -> Result<JsValue, JsValue> {
-    if frame < -3 || frame > 2 {
-        return Err(JsValue::from_str("Frame must be between -3 and 2."));
-    }
-
-    let encoder = fna2faa::CodonEncoder::mk_encoder();
-    let result = fna2faa::translate_frame_internal(&encoder, seq, frame as i8, stop_at_first)
-        .map_err(|err| JsValue::from_str(&err))?;
-    to_value(&result)
-        .map_err(|err| JsValue::from_str(&format!("Failed to serialize translation: {}", err)))
+pub fn translate_dna_frame(
+    seq: &str,
+    frame: usize,
+    stop_at_first_stop: bool,
+) -> Result<String, JsValue> {
+    translation::translate_frame(seq, frame, stop_at_first_stop)
+        .map_err(|err| JsValue::from_str(&err))
 }
 
 #[wasm_bindgen]
-pub fn translate_all_frames(seq: &str, stop_at_first: bool) -> Result<JsValue, JsValue> {
-    let encoder = fna2faa::CodonEncoder::mk_encoder();
-    let result = fna2faa::translate_all_frames_internal(&encoder, seq, stop_at_first);
-    to_value(&result)
-        .map_err(|err| JsValue::from_str(&format!("Failed to serialize translation: {}", err)))
+pub fn translate_dna_all_frames(seq: &str, stop_at_first_stop: bool) -> Result<JsValue, JsValue> {
+    let translations = translation::translate_all_frames(seq, stop_at_first_stop)
+        .map_err(|err| JsValue::from_str(&err))?;
+    to_value(&translations)
+        .map_err(|err| JsValue::from_str(&format!("Failed to serialize translations: {}", err)))
 }

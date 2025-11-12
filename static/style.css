@@ -169,6 +169,38 @@ nav h6 {
     padding-top: 1.5rem;
 }
 
+.translation-results {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.translation-entry {
+    margin: 0;
+}
+
+.translation-entry-title {
+    color: #444;
+    margin-bottom: 0.5rem;
+}
+
+.translation-sequence {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-family: "Fira Sans Mono", "SFMono-Regular", Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+
+@media (max-width: 576px) {
+    .translation-sequence {
+        font-size: 0.9rem;
+    }
+}
+
 .hmm-logo-strip {
     display: flex;
     gap: 0.85rem;
