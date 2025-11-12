@@ -88,7 +88,7 @@ pub fn parse_hmm(text: &str) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn translate_dna_frame(
     seq: &str,
-    frame: usize,
+    frame: i8,
     stop_at_first_stop: bool,
 ) -> Result<String, JsValue> {
     translation::translate_frame(seq, frame, stop_at_first_stop)
@@ -97,8 +97,8 @@ pub fn translate_dna_frame(
 
 #[wasm_bindgen]
 pub fn translate_dna_all_frames(seq: &str, stop_at_first_stop: bool) -> Result<JsValue, JsValue> {
-    let translations = translation::translate_all_frames(seq, stop_at_first_stop)
+    let summary = translation::translate_all_frames(seq, stop_at_first_stop)
         .map_err(|err| JsValue::from_str(&err))?;
-    to_value(&translations)
+    to_value(&summary)
         .map_err(|err| JsValue::from_str(&format!("Failed to serialize translations: {}", err)))
 }
