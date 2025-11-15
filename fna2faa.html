@@ -19,6 +19,7 @@
             <textarea id="fna-input" class="form-control" rows="12" placeholder="Paste FASTA or raw nucleotide sequence"></textarea>
             <small class="form-text text-muted">
                 Supports multiple FASTA entries or raw text. Ambiguous nucleotides will translate to <code>X</code>.
+                You can <a href="#" id="load-example">load an example sequence</a> to try it out.
             </small>
         </div>
         <div class="form-row">
@@ -66,6 +67,8 @@
 
 <script type="module">
 import init, { translate_dna_all_frames, translate_dna_frame } from './pkg/web_bio_tools.js';
+
+const exampleFastaEntry = `>GMSC10.90AA.283_000_000\nATGCACGGACACTCCCCGGACGTCACGACCACCACGGTGGACGTGGTCGCCCACGCGGGTTACCGCATCGGGGACCGCGTCCTGCGGGCCGCGAAGGTGACCGTGCTGGATCCTGAGAGCTGA`;
 
 function parseFastaRecords(text) {
     const trimmed = text.trim();
@@ -188,6 +191,7 @@ async function bootstrap() {
     const resultsContainer = document.getElementById('translation-results');
     const errorBox = document.getElementById('translation-error');
     const downloadButton = document.getElementById('download-fasta');
+    const loadExampleLink = document.getElementById('load-example');
 
     if (downloadButton) {
         downloadButton.addEventListener('click', () => {
@@ -195,6 +199,16 @@ async function bootstrap() {
                 return;
             }
             triggerFastaDownload(lastTranslations);
+        });
+    }
+
+    if (loadExampleLink) {
+        loadExampleLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            const input = document.getElementById('fna-input');
+            if (input) {
+                input.value = exampleFastaEntry;
+            }
         });
     }
 
