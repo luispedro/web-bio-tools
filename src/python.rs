@@ -1,7 +1,4 @@
-use crate::alignment;
-use crate::translation;
 use crate::AlignmentResult;
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -33,91 +30,91 @@ impl From<AlignmentResult> for PyAlignmentResult {
     }
 }
 
-#[pyfunction]
-fn smith_waterman(seq1: &str, seq2: &str) -> PyAlignmentResult {
-    alignment::smith_waterman_internal(seq1, seq2, 2.0, -1.0, -1.0, -0.5).into()
-}
-
-#[pyfunction]
-fn smith_waterman_custom(
-    seq1: &str,
-    seq2: &str,
-    match_score: f64,
-    mismatch_penalty: f64,
-    gap_open: f64,
-    gap_extend: f64,
-) -> PyAlignmentResult {
-    alignment::smith_waterman_internal(
-        seq1,
-        seq2,
-        match_score,
-        mismatch_penalty,
-        gap_open,
-        gap_extend,
-    )
-    .into()
-}
-
-#[pyfunction]
-fn smith_waterman_blosum62(
-    seq1: &str,
-    seq2: &str,
-    gap_open: f64,
-    gap_extend: f64,
-) -> PyAlignmentResult {
-    alignment::smith_waterman_blosum62_internal(seq1, seq2, gap_open, gap_extend).into()
-}
-
-#[pyfunction]
-fn needleman_wunsch(seq1: &str, seq2: &str) -> PyAlignmentResult {
-    alignment::needleman_wunsch_internal(seq1, seq2, 2.0, -1.0, -1.0, -0.5).into()
-}
-
-#[pyfunction]
-fn needleman_wunsch_custom(
-    seq1: &str,
-    seq2: &str,
-    match_score: f64,
-    mismatch_penalty: f64,
-    gap_open: f64,
-    gap_extend: f64,
-) -> PyAlignmentResult {
-    alignment::needleman_wunsch_internal(
-        seq1,
-        seq2,
-        match_score,
-        mismatch_penalty,
-        gap_open,
-        gap_extend,
-    )
-    .into()
-}
-
-#[pyfunction]
-fn needleman_wunsch_blosum62(
-    seq1: &str,
-    seq2: &str,
-    gap_open: f64,
-    gap_extend: f64,
-) -> PyAlignmentResult {
-    alignment::needleman_wunsch_blosum62_internal(seq1, seq2, gap_open, gap_extend).into()
-}
-
-#[pyfunction]
-fn translate_dna_frame(seq: &str, frame: i8, stop_at_first_stop: bool) -> PyResult<String> {
-    translation::translate_frame(seq, frame, stop_at_first_stop)
-        .map_err(|err| PyErr::new::<PyValueError, _>(err))
-}
 
 #[pymodule]
-fn web_bio_tools(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyAlignmentResult>()?;
-    m.add_function(wrap_pyfunction!(smith_waterman, m)?)?;
-    m.add_function(wrap_pyfunction!(smith_waterman_custom, m)?)?;
-    m.add_function(wrap_pyfunction!(smith_waterman_blosum62, m)?)?;
-    m.add_function(wrap_pyfunction!(needleman_wunsch, m)?)?;
-    m.add_function(wrap_pyfunction!(needleman_wunsch_custom, m)?)?;
-    m.add_function(wrap_pyfunction!(needleman_wunsch_blosum62, m)?)?;
-    m.add_function(wrap_pyfunction!(translate_dna_frame, m)?)?;
-    Ok(())
+mod web_bio_tools {
+    use pyo3::prelude::*;
+    use pyo3::exceptions::PyValueError;
+    use crate::alignment;
+
+    #[pymodule_export]
+    use super::PyAlignmentResult;
+
+    #[pyfunction]
+    fn smith_waterman(seq1: &str, seq2: &str) -> PyAlignmentResult {
+        alignment::smith_waterman_internal(seq1, seq2, 2.0, -1.0, -1.0, -0.5).into()
+    }
+
+    #[pyfunction]
+    fn smith_waterman_custom(
+        seq1: &str,
+        seq2: &str,
+        match_score: f64,
+        mismatch_penalty: f64,
+        gap_open: f64,
+        gap_extend: f64,
+    ) -> PyAlignmentResult {
+        alignment::smith_waterman_internal(
+            seq1,
+            seq2,
+            match_score,
+            mismatch_penalty,
+            gap_open,
+            gap_extend,
+        )
+        .into()
+    }
+
+    #[pyfunction]
+    fn smith_waterman_blosum62(
+        seq1: &str,
+        seq2: &str,
+        gap_open: f64,
+        gap_extend: f64,
+    ) -> PyAlignmentResult {
+        alignment::smith_waterman_blosum62_internal(seq1, seq2, gap_open, gap_extend).into()
+    }
+
+    #[pyfunction]
+    fn needleman_wunsch(seq1: &str, seq2: &str) -> PyAlignmentResult {
+        alignment::needleman_wunsch_internal(seq1, seq2, 2.0, -1.0, -1.0, -0.5).into()
+    }
+
+    #[pyfunction]
+    fn needleman_wunsch_custom(
+        seq1: &str,
+        seq2: &str,
+        match_score: f64,
+        mismatch_penalty: f64,
+        gap_open: f64,
+        gap_extend: f64,
+    ) -> PyAlignmentResult {
+        alignment::needleman_wunsch_internal(
+            seq1,
+            seq2,
+            match_score,
+            mismatch_penalty,
+            gap_open,
+            gap_extend,
+        )
+        .into()
+    }
+
+    #[pyfunction]
+    fn needleman_wunsch_blosum62(
+        seq1: &str,
+        seq2: &str,
+        gap_open: f64,
+        gap_extend: f64,
+    ) -> PyAlignmentResult {
+        alignment::needleman_wunsch_blosum62_internal(seq1, seq2, gap_open, gap_extend).into()
+    }
+
+
+    #[pyfunction]
+    fn translate_dna_frame(seq: &str, frame: i8, stop_at_first_stop: bool) -> PyResult<String> {
+        crate::translation::translate_frame(seq, frame, stop_at_first_stop)
+            .map_err(|err| PyErr::new::<PyValueError, _>(err))
+    }
 }
+
