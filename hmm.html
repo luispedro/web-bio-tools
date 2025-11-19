@@ -103,23 +103,45 @@ function buildLogoEntries(headers, values) {
 
     entries.sort((a, b) => a.weight - b.weight);
 
+    const probabilities = entries.map((entry) => entry.weight / totalWeight);
+    const entropy = probabilities.reduce((sum, probability) => {
+        if (!Number.isFinite(probability) || probability <= 0) {
+            return sum;
+        }
+        return sum - probability * Math.log(probability);
+    }, 0);
+    const alphabetSize = headers.length || probabilities.length;
+    const maxInformation = alphabetSize > 0 ? Math.log(alphabetSize) : null;
+    const MIN_COLUMN_SCALE = 0.2;
+    const MAX_COLUMN_SCALE = 1;
+    let columnScale = 1;
+    if (maxInformation && Number.isFinite(maxInformation) && maxInformation > 0) {
+        const informationContent = Math.max(0, maxInformation - entropy);
+        const normalized = informationContent / maxInformation;
+        columnScale = Math.min(
+            MAX_COLUMN_SCALE,
+            Math.max(MIN_COLUMN_SCALE, normalized)
+        );
+    }
+
     let offset = 0;
     entries.forEach((entry, index) => {
-        let height = (entry.weight / totalWeight) * 100;
-        if (!Number.isFinite(height) || height <= 0) {
+        const probability = probabilities[index];
+        const percent = Number.isFinite(probability) && probability > 0 ? probability * 100 : 0;
+        entry.percent = percent;
+        entry.probability = probability;
+        const scaledHeight = percent * columnScale;
+        if (!Number.isFinite(scaledHeight) || scaledHeight <= 0) {
             entry.height = 0;
             entry.offset = offset;
             return;
         }
-        if (index === entries.length - 1) {
-            height = Math.max(0, 100 - offset);
-        }
-        entry.height = height;
+        entry.height = scaledHeight;
         entry.offset = offset;
-        offset += height;
+        offset += scaledHeight;
     });
 
-    return { entries, totalWeight };
+    return { entries, totalWeight, columnScale };
 }
 
 function createLogoStack(entries, options = {}) {
@@ -144,7 +166,10 @@ function createLogoStack(entries, options = {}) {
         const fontSize = Math.max(8, Math.min(pixelHeight * 0.82, stackHeight * 0.85));
         span.style.fontSize = `${fontSize}px`;
         span.style.backgroundColor = getResidueColor(entry.symbol);
-        span.title = `${entry.symbol}: ${formatOptional(entry.raw)} (≈ ${formatPercentage(entry.height)})`;
+        const probabilityText = Number.isFinite(entry.percent)
+            ? formatPercentage(entry.percent)
+            : 'n/a';
+        span.title = `${entry.symbol}: ${formatOptional(entry.raw)} • p≈${probabilityText}`;
         stack.appendChild(span);
     });
 
@@ -179,7 +204,7 @@ function createInlineLogo(headers, values, options = {}) {
     const summaryPrefix = options.summaryPrefix ?? 'Top residues';
     const topEntries = data.entries.slice(-3).reverse();
     summary.textContent = `${summaryPrefix}: ${topEntries
-        .map((entry) => `${entry.symbol} (${formatPercentage(entry.height)})`)
+        .map((entry) => `${entry.symbol} (${formatPercentage(entry.percent)})`)
         .join(', ')}`;
     container.appendChild(summary);
 
@@ -231,7 +256,7 @@ function createLogoOverview(states, alphabet) {
 
         const tooltipParts = [`State ${state.label}`];
         if (topResidue) {
-            tooltipParts.push(`top ${topResidue.symbol} (${formatPercentage(topResidue.height)})`);
+            tooltipParts.push(`top ${topResidue.symbol} (${formatPercentage(topResidue.percent)})`);
         }
         column.title = tooltipParts.join(' • ');
         columns.push(column);
@@ -250,7 +275,8 @@ function createLogoOverview(states, alphabet) {
 
     const description = document.createElement('p');
     description.className = 'text-muted small';
-    description.textContent = 'Letter heights reflect normalized emission weights derived from HMM scores (lower scores correspond to taller letters). Scroll horizontally to inspect the profile.';
+    description.textContent =
+        'Letter heights reflect normalized emission weights derived from HMM scores and the total column height scales with the information content of the emissions. Scroll horizontally to inspect the profile.';
     section.appendChild(description);
 
     const strip = document.createElement('div');
@@ -484,7 +510,7 @@ function renderHmm(hmm) {
         }
         const matchTop = getTopResidue(hmm.alphabet, state.match_emissions);
         if (matchTop) {
-            summaryParts.push(`top ${matchTop.symbol} (${formatPercentage(matchTop.height)})`);
+            summaryParts.push(`top ${matchTop.symbol} (${formatPercentage(matchTop.percent)})`);
         }
         summary.textContent = summaryParts.join(' • ');
         details.appendChild(summary);
