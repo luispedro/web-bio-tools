@@ -176,7 +176,8 @@ function renderTranslation(container, recordName, frameLabel, translation) {
 
     const pre = document.createElement('pre');
     pre.className = 'translation-sequence';
-    pre.textContent = wrapSequence(translation);
+    const header = `${recordName} | ${frameLabel}`;
+    pre.textContent = `>${header}\n${wrapSequence(translation)}`;
     section.appendChild(pre);
 
     container.appendChild(section);
