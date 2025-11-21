@@ -18,8 +18,7 @@
             <label for="fna-input">Nucleotide input</label>
             <textarea id="fna-input" class="form-control" rows="12" placeholder="Paste FASTA or raw nucleotide sequence"></textarea>
             <small class="form-text text-muted">
-                Supports multiple FASTA entries or raw text. Ambiguous nucleotides will translate to <code>X</code>.
-                You can <a href="#" id="load-example">load an example sequence</a> to try it out.
+                Supports multiple FASTA entries or raw text. You can <a href="#" id="load-example">load an example sequence</a> to try it out.
             </small>
         </div>
         <div class="form-row">
@@ -46,6 +45,7 @@
         <a href="index.html" class="btn btn-link">Back to main tools</a>
         <a href="hmm.html" class="btn btn-link">HMM viewer</a>
     </form>
+    <p>Ambiguous nucleotides are supported: if all variants code for the same amino acid, that will be the result; otherwise, the result will be <code>X</code>. For example, <code>ATR</code> translates to <code>I</code> because both <code>ATA</code> and <code>ATG</code> code for Isoleucine, while <code>ATN</code> translates to <code>X</code> since <code>ATG</code> codes for Methionine, so not all variants agree. </p>
     <div id="translation-error" class="alert alert-danger" style="display:none"></div>
     <div id="translation-output" class="card" style="display:none">
         <div class="card-body">
