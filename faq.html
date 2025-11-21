@@ -3,62 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <title>FAQ - Web Bio Tools</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
-<div class="container mt-4">
-    <h1>Frequently Asked Questions</h1>
-    <dl>
-        <dt>What is this project?</dt>
-        <dd>Web Bio Tools is an experimental collection of browser-based
-            bioinformatics utilities written in Rust and compiled to
-            WebAssembly. Right now, it supports pairwise sequence alignment.
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2" id="sidebar-container"></div>
+        <div class="col-lg-8 col-md-9 mt-4">
+            <h1>Frequently Asked Questions</h1>
+            <dl>
+                <dt>What is this project?</dt>
+                <dd>Web Bio Tools is an experimental collection of browser-based
+                    bioinformatics utilities written in Rust and compiled to
+                    WebAssembly. Right now, it supports pairwise sequence alignment.
 
-        </dd>
+                </dd>
 
-        <dt>Was this project <cite>vibe coded</cite>?</dt>
-        <dd>Pretty much. In fact, this FAQ is the exception as it was mostly
-            hand written. The other big manual contribution was choosing the
-            example sequences.
-        </dd>
+                <dt>Was this project <cite>vibe coded</cite>?</dt>
+                <dd>Pretty much. In fact, this FAQ is the exception as it was mostly
+                    hand written. The other big manual contribution was choosing the
+                    example sequences.
+                </dd>
 
-        <dt>Where are the example sequences from?</dt>
-        <dd>All of them are examples of alignments to the <a
-                href="https://card.mcmaster.ca/">Comprehensive Antibiotic
-                Resistance Database</a> (CARD, a database of antibiotic
-            resistance genes).
+                <dt>Where are the example sequences from?</dt>
+                <dd>All of them are examples of alignments to the <a
+                        href="https://card.mcmaster.ca/">Comprehensive Antibiotic
+                        Resistance Database</a> (CARD, a database of antibiotic
+                    resistance genes).
 
-            The very similar sequence is from our dog gut microbiome catalog
-            (which is not fully public yet).
+                    The very similar sequence is from our dog gut microbiome catalog
+                    (which is not fully public yet).
 
-            The very dissimilar sequence is referenced in the <a
-            href="https://doi.org/10.1093/bioinformatics/btaf173">argNorm</a>
-            paper as the two ErmA genes, which were reported at the same time
-            (in 1985) and thus got the same name but are not closely related.
-        </dd>
+                    The very dissimilar sequence is referenced in the <a
+                    href="https://doi.org/10.1093/bioinformatics/btaf173">argNorm</a>
+                    paper as the two ErmA genes, which were reported at the same time
+                    (in 1985) and thus got the same name but are not closely related.
+                </dd>
 
-        <dt>If the algorithms were <cite>vibe coded</cite>, how can we trust any of it?</dt>
-        <dd>They were compared to the implementations in BioPython and found to
-            be equivalent. These tests use the
-            [hypothesis](https://hypothesis.readthedocs.io/) library to check
-            randomly-generated examples.
+                <dt>If the algorithms were <cite>vibe coded</cite>, how can we trust any of it?</dt>
+                <dd>They were compared to the implementations in BioPython and found to
+                    be equivalent. These tests use the
+                    [hypothesis](https://hypothesis.readthedocs.io/) library to check
+                    randomly-generated examples.
 
-            <p>The tests were also <cite>vibe coded</cite>.
-        </dd>
+                    <p>The tests were also <cite>vibe coded</cite>.
+                </dd>
 
-        <dt>When I save a result do I have to log back in to see it?</dt>
-        <dd>No, there is no logging in, everything is running on your browser.
-            Saved results are local to you (they are saved in your browser). If
-            you share them, all the information is present in the the
-            URLs.</dd>
+                <dt>When I save a result do I have to log back in to see it?</dt>
+                <dd>No, there is no logging in, everything is running on your browser.
+                    Saved results are local to you (they are saved in your browser). If
+                    you share them, all the information is present in the the
+                    URLs.</dd>
 
-    </dl>
-    <p>
-        <a href="index.html">Back to the main page</a>
-        ·
-        <a href="fna2faa.html">DNA to protein translator</a>
-    </p>
+            </dl>
+            <p>
+                <a href="index.html">Back to the main page</a>
+                ·
+                <a href="fna2faa.html">DNA to protein translator</a>
+            </p>
+        </div>
+    </div>
 </div>
+
+<script>
+    $(function() {
+        $('#sidebar-container').load('sidebar.html');
+    });
+</script>
 </body>
 </html>

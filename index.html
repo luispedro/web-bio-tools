@@ -398,6 +398,7 @@
     </script>
     <script>
         $(function() {
+            $('#sidebar-container').load('sidebar.html');
             const seq_example_similar_1 = ">SHD1_0881_ErmB\n" +
                 "MNKNIKYSQNFLTSEKVLNQIIKQLNLKETDTVYEIGTGKGHLTTKLAKISKQVTSIELDSHLFNLSSEKLKLNTRVTLIHQDILQFQFPNKQRYKIVGSIPYHLSTQIIKKVVFESHASDIYLIVEEGFYKRTLDIHRTLGLLLHTQVSIQQLLKLPAECFHPKPKVNSVLIKLTRHTTDVPDKYWKLYTYFVSKWVNREYRQLFTKNQFHQAMKHAKVNNLSTVTYEQVLSIFNSYLLFNGRK";
 
@@ -470,21 +471,7 @@
 
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-2">
-            <nav id="leftbar">
-                <div>
-                    <h6>Links</h6>
-                    <ul>
-                        <li><a href="https://github.com/luispedro/web-bio-tools">GitHub repository</a></li>
-                        <li><a href="https://luispedro.org">Luis Pedro Coelho's homepage</a></li>
-                        <li><a href="https://big-data-biology.org/">Big Data Biology Lab</a></li>
-                        <li><a href="fna2faa.html">DNA to protein translator</a></li>
-                        <li><a href="hmm.html">HMM viewer</a></li>
-                        <li><a href="faq.html">FAQ</a></li>
-                    </ul>
-                    </div>
-                </nav>
-            </div>
+            <div class="col-md-2" id="sidebar-container"></div>
             <div class="col">
                 <h1>Web Bio Tools</h1>
                 <h2>Sequence Alignment</h2>

@@ -3,67 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <title>DNA to Protein Translator - Web Bio Tools</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
-<div class="container mt-4">
-    <h1>DNA to Protein Translator</h1>
-    <p>
-        Paste nucleotide FASTA entries or raw DNA text below to translate coding sequences
-        into amino acids directly in your browser.
-    </p>
-    <form id="translation-form" class="mb-3">
-        <div class="form-group">
-            <label for="fna-input">Nucleotide input</label>
-            <textarea id="fna-input" class="form-control" rows="12" placeholder="Paste FASTA or raw nucleotide sequence"></textarea>
-            <small class="form-text text-muted">
-                Supports multiple FASTA entries or raw text. You can <a href="#" id="load-example">load an example sequence</a> to try it out.
-            </small>
-        </div>
-        <div class="form-row">
-            <div class="form-group col-md-4">
-                <label for="frame-option">Reading frame</label>
-                <select id="frame-option" class="form-control">
-                    <option value="all" selected>All frames (+1 to -3)</option>
-                    <option value="+1">Frame +1</option>
-                    <option value="+2">Frame +2</option>
-                    <option value="+3">Frame +3</option>
-                    <option value="-1">Frame -1</option>
-                    <option value="-2">Frame -2</option>
-                    <option value="-3">Frame -3</option>
-                </select>
-            </div>
-            <div class="form-group col-md-4 align-self-end">
-                <div class="form-check mt-2">
-                    <input type="checkbox" class="form-check-input" id="stop-option">
-                    <label class="form-check-label" for="stop-option">Stop at first stop codon</label>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2" id="sidebar-container"></div>
+        <div class="col-lg-8 col-md-9 mt-4">
+            <h1>DNA to Protein Translator</h1>
+            <p>
+                Paste nucleotide FASTA entries or raw DNA text below to translate coding sequences
+                into amino acids directly in your browser.
+            </p>
+            <form id="translation-form" class="mb-3">
+                <div class="form-group">
+                    <label for="fna-input">Nucleotide input</label>
+                    <textarea id="fna-input" class="form-control" rows="12" placeholder="Paste FASTA or raw nucleotide sequence"></textarea>
+                    <small class="form-text text-muted">
+                        Supports multiple FASTA entries or raw text. You can <a href="#" id="load-example">load an example sequence</a> to try it out.
+                    </small>
                 </div>
-            </div>
-        </div>
-        <button type="submit" class="btn btn-primary">Translate</button>
-        <a href="index.html" class="btn btn-link">Back to main tools</a>
-        <a href="hmm.html" class="btn btn-link">HMM viewer</a>
-    </form>
-    <p>Ambiguous nucleotides are supported: if all variants code for the same amino acid, that will be the result; otherwise, the result will be <code>X</code>. For example, <code>ATR</code> translates to <code>I</code> because both <code>ATA</code> and <code>ATG</code> code for Isoleucine, while <code>ATN</code> translates to <code>X</code> since <code>ATG</code> codes for Methionine, so not all variants agree. </p>
-    <div id="translation-error" class="alert alert-danger" style="display:none"></div>
-    <div id="translation-output" class="card" style="display:none">
-        <div class="card-body">
-            <h2 class="h5 card-title">Translated sequences</h2>
-            <div id="translation-results" class="translation-results"></div>
-            <div class="d-flex justify-content-end mt-3">
-                <button
-                    id="download-fasta"
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    style="display:none"
-                >
-                    Download FASTA
-                </button>
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label for="frame-option">Reading frame</label>
+                        <select id="frame-option" class="form-control">
+                            <option value="all" selected>All frames (+1 to -3)</option>
+                            <option value="+1">Frame +1</option>
+                            <option value="+2">Frame +2</option>
+                            <option value="+3">Frame +3</option>
+                            <option value="-1">Frame -1</option>
+                            <option value="-2">Frame -2</option>
+                            <option value="-3">Frame -3</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-4 align-self-end">
+                        <div class="form-check mt-2">
+                            <input type="checkbox" class="form-check-input" id="stop-option">
+                            <label class="form-check-label" for="stop-option">Stop at first stop codon</label>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Translate</button>
+                <a href="index.html" class="btn btn-link">Back to main tools</a>
+                <a href="hmm.html" class="btn btn-link">HMM viewer</a>
+            </form>
+            <p>Ambiguous nucleotides are supported: if all variants code for the same amino acid, that will be the result; otherwise, the result will be <code>X</code>. For example, <code>ATR</code> translates to <code>I</code> because both <code>ATA</code> and <code>ATG</code> code for Isoleucine, while <code>ATN</code> translates to <code>X</code> since <code>ATG</code> codes for Methionine, so not all variants agree. </p>
+            <div id="translation-error" class="alert alert-danger" style="display:none"></div>
+            <div id="translation-output" class="card" style="display:none">
+                <div class="card-body">
+                    <h2 class="h5 card-title">Translated sequences</h2>
+                    <div id="translation-results" class="translation-results"></div>
+                    <div class="d-flex justify-content-end mt-3">
+                        <button
+                            id="download-fasta"
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            style="display:none"
+                        >
+                            Download FASTA
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    $(function() {
+        $('#sidebar-container').load('sidebar.html');
+    });
+</script>
 
 <script type="module">
 import init, { translate_dna_all_frames, translate_dna_frame } from './pkg/web_bio_tools.js';

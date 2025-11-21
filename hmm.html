@@ -3,30 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <title>HMM Viewer - Web Bio Tools</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
-<div class="container mt-4">
-    <h1>Hidden Markov Model Viewer</h1>
-    <p>
-        Paste a profile HMM in HMMER's <code>.hmm</code> format below to inspect its fields.
-    </p>
-    <form id="hmm-form" class="mb-3">
-        <div class="form-group">
-            <label for="hmm-input">HMM input</label>
-            <textarea id="hmm-input" class="form-control" rows="12" placeholder="Paste your HMM text here"></textarea>
-            <small class="form-text text-muted">
-                You can <a href="#" id="load-example">load an example HMM</a> to try it out.
-            </small>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2" id="sidebar-container"></div>
+        <div class="col-lg-8 col-md-9 mt-4">
+            <h1>Hidden Markov Model Viewer</h1>
+            <p>
+                Paste a profile HMM in HMMER's <code>.hmm</code> format below to inspect its fields.
+            </p>
+            <form id="hmm-form" class="mb-3">
+                <div class="form-group">
+                    <label for="hmm-input">HMM input</label>
+                    <textarea id="hmm-input" class="form-control" rows="12" placeholder="Paste your HMM text here"></textarea>
+                    <small class="form-text text-muted">
+                        You can <a href="#" id="load-example">load an example HMM</a> to try it out.
+                    </small>
+                </div>
+                <button type="submit" class="btn btn-primary">Parse HMM</button>
+                <a href="index.html" class="btn btn-link">Back to main tools</a>
+                <a href="fna2faa.html" class="btn btn-link">DNA to protein translator</a>
+            </form>
+            <div id="hmm-error" class="alert alert-danger" style="display:none"></div>
+            <div id="hmm-output"></div>
         </div>
-        <button type="submit" class="btn btn-primary">Parse HMM</button>
-        <a href="index.html" class="btn btn-link">Back to main tools</a>
-        <a href="fna2faa.html" class="btn btn-link">DNA to protein translator</a>
-    </form>
-    <div id="hmm-error" class="alert alert-danger" style="display:none"></div>
-    <div id="hmm-output"></div>
+    </div>
 </div>
+
+<script>
+    $(function() {
+        $('#sidebar-container').load('sidebar.html');
+    });
+</script>
 
 <script type="module">
 import init, { parse_hmm } from './pkg/web_bio_tools.js';
