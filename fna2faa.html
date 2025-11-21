@@ -166,21 +166,12 @@ function triggerFastaDownload(entries) {
 }
 
 function renderTranslation(container, recordName, frameLabel, translation) {
-    const section = document.createElement('section');
-    section.className = 'translation-entry';
-
-    const heading = document.createElement('h3');
-    heading.className = 'h6 translation-entry-title';
-    heading.textContent = `${recordName} — ${frameLabel}`;
-    section.appendChild(heading);
-
     const pre = document.createElement('pre');
     pre.className = 'translation-sequence';
     const header = `${recordName} | ${frameLabel}`;
     pre.textContent = `>${header}\n${wrapSequence(translation)}`;
-    section.appendChild(pre);
 
-    container.appendChild(section);
+    container.appendChild(pre);
 }
 
 let lastTranslations = [];
