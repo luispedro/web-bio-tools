@@ -26,11 +26,11 @@
                     </small>
                 </div>
                 <div class="form-row">
-                    <div class="form-group col-md-4">
+                    <div class="form-group col-md-6">
+                        <button id="translate-single" type="button" class="btn btn-primary btn-block mb-2">Translate one frame</button>
                         <label for="frame-option">Reading frame</label>
                         <select id="frame-option" class="form-control">
-                            <option value="all" selected>All frames (+1 to -3)</option>
-                            <option value="+1">Frame +1</option>
+                            <option value="+1" selected>Frame +1</option>
                             <option value="+2">Frame +2</option>
                             <option value="+3">Frame +3</option>
                             <option value="-1">Frame -1</option>
@@ -38,14 +38,16 @@
                             <option value="-3">Frame -3</option>
                         </select>
                     </div>
-                    <div class="form-group col-md-4 align-self-end">
+                    <div class="form-group col-md-4">
                         <div class="form-check mt-2">
                             <input type="checkbox" class="form-check-input" id="stop-option">
                             <label class="form-check-label" for="stop-option">Stop at first stop codon</label>
                         </div>
                     </div>
+                    <div class="form-group col-md-2">
+                        <button id="translate-all" type="button" class="btn btn-primary btn-block mb-2">Six-frame translation</button>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Translate</button>
             </form>
             <p>Ambiguous nucleotides are supported: if all variants code for the same amino acid, that will be the result; otherwise, the result will be <code>X</code>. For example, <code>ATR</code> translates to <code>I</code> because both <code>ATA</code> and <code>ATG</code> code for Isoleucine, while <code>ATN</code> translates to <code>X</code> since <code>ATG</code> codes for Methionine, so not all variants agree. </p>
             <div id="translation-error" class="alert alert-danger" style="display:none"></div>
@@ -188,12 +190,15 @@ let lastTranslations = [];
 
 async function bootstrap() {
     await init();
-    const form = document.getElementById('translation-form');
     const outputCard = document.getElementById('translation-output');
     const resultsContainer = document.getElementById('translation-results');
     const errorBox = document.getElementById('translation-error');
     const downloadButton = document.getElementById('download-fasta');
     const loadExampleLink = document.getElementById('load-example');
+    const translateSingleButton = document.getElementById('translate-single');
+    const translateAllButton = document.getElementById('translate-all');
+    const frameSelect = document.getElementById('frame-option');
+    const stopOption = document.getElementById('stop-option');
 
     if (downloadButton) {
         downloadButton.addEventListener('click', () => {
@@ -214,8 +219,7 @@ async function bootstrap() {
         });
     }
 
-    form.addEventListener('submit', (event) => {
-        event.preventDefault();
+    function resetOutput() {
         errorBox.style.display = 'none';
         errorBox.textContent = '';
         resultsContainer.innerHTML = '';
@@ -225,6 +229,10 @@ async function bootstrap() {
             downloadButton.style.display = 'none';
             downloadButton.disabled = true;
         }
+    }
+
+    function translateRecords(mode) {
+        resetOutput();
 
         const inputValue = document.getElementById('fna-input').value;
         const records = parseFastaRecords(inputValue);
@@ -234,26 +242,38 @@ async function bootstrap() {
             return;
         }
 
-        const frameSelection = document.getElementById('frame-option').value;
-        const stopAtFirstStop = document.getElementById('stop-option').checked;
+        const translateAllFrames = mode === 'all';
+        const frameSelection = frameSelect ? frameSelect.value : null;
+        const stopAtFirstStop = Boolean(stopOption && stopOption.checked);
+
+        let frameNumber = null;
+        if (!translateAllFrames) {
+            const selection = frameSelection || '+1';
+            frameNumber = Number.parseInt(selection, 10);
+            if (!Number.isFinite(frameNumber) || frameNumber === 0) {
+                errorBox.textContent = `Invalid frame selection: ${selection}`;
+                errorBox.style.display = 'block';
+                return;
+            }
+        }
 
         try {
             const collectedEntries = [];
             for (const [index, record] of records.entries()) {
                 const labelBase = record.name || `Sequence ${index + 1}`;
-                if (frameSelection === 'all') {
+                if (translateAllFrames) {
                     const summary = translate_dna_all_frames(record.sequence, stopAtFirstStop);
                     const frames = summary && summary.frames;
                     if (!Array.isArray(frames)) {
                         throw new Error('Unexpected translation summary format returned from translator.');
                     }
                     frames.forEach((entry) => {
-                        const frameNumber = Number(entry.frame);
+                        const translatedFrameNumber = Number(entry.frame);
                         const translation =
                             typeof entry.amino_acids === 'string'
                                 ? entry.amino_acids
                                 : String(entry.amino_acids);
-                        const frameLabel = formatFrameLabel(frameNumber);
+                        const frameLabel = formatFrameLabel(translatedFrameNumber);
                         renderTranslation(
                             resultsContainer,
                             labelBase,
@@ -266,10 +286,6 @@ async function bootstrap() {
                         });
                     });
                 } else {
-                    const frameNumber = Number.parseInt(frameSelection, 10);
-                    if (!Number.isFinite(frameNumber) || frameNumber === 0) {
-                        throw new Error(`Invalid frame selection: ${frameSelection}`);
-                    }
                     const translation = translate_dna_frame(
                         record.sequence,
                         frameNumber,
@@ -299,7 +315,15 @@ async function bootstrap() {
             errorBox.textContent = error instanceof Error ? error.message : String(error);
             errorBox.style.display = 'block';
         }
-    });
+    }
+
+    if (translateSingleButton) {
+        translateSingleButton.addEventListener('click', () => translateRecords('single'));
+    }
+
+    if (translateAllButton) {
+        translateAllButton.addEventListener('click', () => translateRecords('all'));
+    }
 }
 
 bootstrap().catch((error) => {
