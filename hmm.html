@@ -68,12 +68,136 @@ const residueColorPalette = {
     X: '#7f7f7f',
 };
 
+const residueColorGroups = [
+    {
+        label: 'Basic or small (A, K, R)',
+        color: '#1f77b4',
+        example: 'K',
+    },
+    {
+        label: 'Polar uncharged (C, N, Q, S, T)',
+        color: '#2ca02c',
+        example: 'S',
+    },
+    {
+        label: 'Acidic (D, E)',
+        color: '#d62728',
+        example: 'D',
+    },
+    {
+        label: 'Hydrophobic aliphatic (I, L, M, V)',
+        color: '#bcbd22',
+        example: 'I',
+    },
+    {
+        label: 'Aromatic (F, W, Y)',
+        color: '#9467bd',
+        example: 'W',
+    },
+    {
+        label: 'Glycine (G) – flexible',
+        color: '#ff7f0e',
+        example: 'G',
+    },
+    {
+        label: 'Proline (P) – rigid kink',
+        color: '#ff9896',
+        example: 'P',
+    },
+    {
+        label: 'Histidine / selenocysteine (H, U)',
+        color: '#17becf',
+        example: 'H',
+    },
+    {
+        label: 'Unknown or gap (X, gaps)',
+        color: '#6c757d',
+        example: 'X',
+    },
+];
+
 function getResidueColor(symbol) {
     if (!symbol) {
         return '#6c757d';
     }
     const key = symbol.toUpperCase();
     return residueColorPalette[key] || '#6c757d';
+}
+
+function createColorLegendItem(group) {
+    const item = document.createElement('div');
+    item.className = 'hmm-color-legend-item';
+
+    const swatch = document.createElement('span');
+    swatch.className = 'hmm-color-legend-swatch';
+    swatch.style.backgroundColor = group.color;
+    swatch.textContent = group.example ?? '';
+    item.appendChild(swatch);
+
+    const label = document.createElement('span');
+    label.className = 'hmm-color-legend-label';
+    label.textContent = group.label;
+    item.appendChild(label);
+
+    return item;
+}
+
+function renderColorLegend(legendContainer) {
+    if (!legendContainer) {
+        return;
+    }
+
+    legendContainer.innerHTML = '';
+    residueColorGroups.forEach((group) => {
+        legendContainer.appendChild(createColorLegendItem(group));
+    });
+}
+
+function createColorLegendSection() {
+    const section = document.createElement('section');
+    section.className = 'mt-4';
+
+    const headingRow = document.createElement('div');
+    headingRow.className = 'hmm-legend-header';
+
+    const heading = document.createElement('h2');
+    heading.className = 'h4 mb-0';
+    heading.textContent = 'Color legend';
+    headingRow.appendChild(heading);
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'btn btn-sm btn-outline-secondary hmm-legend-toggle';
+    toggleButton.textContent = 'Show legend';
+    toggleButton.setAttribute('aria-expanded', 'false');
+    headingRow.appendChild(toggleButton);
+
+    section.appendChild(headingRow);
+
+    const description = document.createElement('p');
+    description.className = 'text-muted small mb-2';
+    description.textContent =
+        'Residue colours highlight shared biochemical properties in the sequence logos and summaries.';
+    section.appendChild(description);
+
+    const legendContainer = document.createElement('div');
+    legendContainer.id = 'residue-color-legend';
+    legendContainer.className = 'hmm-color-legend is-hidden';
+    section.appendChild(legendContainer);
+
+    const toggleLegend = () => {
+        const willShow = legendContainer.classList.contains('is-hidden');
+        if (willShow && !legendContainer.childElementCount) {
+            renderColorLegend(legendContainer);
+        }
+        legendContainer.classList.toggle('is-hidden', !willShow);
+        toggleButton.textContent = willShow ? 'Hide legend' : 'Show legend';
+        toggleButton.setAttribute('aria-expanded', String(willShow));
+    };
+
+    toggleButton.addEventListener('click', toggleLegend);
+
+    return section;
 }
 
 function formatPercentage(value) {
@@ -500,6 +624,9 @@ function renderHmm(hmm) {
     if (logoOverview) {
         output.appendChild(logoOverview);
     }
+
+    const colorLegendSection = createColorLegendSection();
+    output.appendChild(colorLegendSection);
 
     const statesSection = document.createElement('section');
     statesSection.className = 'mt-4';
