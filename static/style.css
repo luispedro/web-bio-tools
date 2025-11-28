@@ -37,6 +37,10 @@ div#topbar a {
     padding: 2em;
 }
 
+nav {
+    padding-top: 1em;
+}
+
 nav ul {
     list-style: none;
     border-left: solid 2px #ccc;
