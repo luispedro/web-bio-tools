@@ -143,6 +143,10 @@ function formatFrameLabel(frameNumber) {
     return frameNumber > 0 ? `Frame +${frameNumber}` : `Frame ${frameNumber}`;
 }
 
+function formatFrameSuffix(frameNumber) {
+    return frameNumber > 0 ? `:+${frameNumber}` : `:${frameNumber}`;
+}
+
 function buildFastaContent(entries) {
     if (!Array.isArray(entries) || entries.length === 0) {
         return '';
@@ -177,10 +181,9 @@ function triggerFastaDownload(entries) {
     URL.revokeObjectURL(url);
 }
 
-function renderTranslation(container, recordName, frameLabel, translation) {
+function renderTranslation(container, header, translation) {
     const pre = document.createElement('pre');
     pre.className = 'translation-sequence';
-    const header = `${recordName} | ${frameLabel}`;
     pre.textContent = `>${header}\n${wrapSequence(translation)}`;
 
     container.appendChild(pre);
@@ -273,15 +276,15 @@ async function bootstrap() {
                             typeof entry.amino_acids === 'string'
                                 ? entry.amino_acids
                                 : String(entry.amino_acids);
-                        const frameLabel = formatFrameLabel(translatedFrameNumber);
+                        const frameSuffix = formatFrameSuffix(translatedFrameNumber);
+                        const header = `${labelBase}${frameSuffix}`;
                         renderTranslation(
                             resultsContainer,
-                            labelBase,
-                            frameLabel,
+                            header,
                             translation
                         );
                         collectedEntries.push({
-                            header: `${labelBase} | ${frameLabel}`,
+                            header,
                             sequence: translation,
                         });
                     });
@@ -292,14 +295,14 @@ async function bootstrap() {
                         stopAtFirstStop
                     );
                     const frameLabel = formatFrameLabel(frameNumber);
+                    const header = `${labelBase} | ${frameLabel}`;
                     renderTranslation(
                         resultsContainer,
-                        labelBase,
-                        frameLabel,
+                        header,
                         translation
                     );
                     collectedEntries.push({
-                        header: `${labelBase} | ${frameLabel}`,
+                        header,
                         sequence: translation,
                     });
                 }
