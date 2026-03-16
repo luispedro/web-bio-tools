@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Delta File Viewer - Web Bio Tools</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2" id="sidebar-container"></div>
+        <div class="col-lg-8 col-md-9 mt-4">
+            <h1>Delta File Viewer</h1>
+            <p>
+                Upload a <code>.delta</code> file produced by
+                <a href="https://github.com/mummer4/mummer">nucmer or promer</a>
+                to visualise genome alignments as an interactive dot plot — entirely
+                in your browser.
+            </p>
+            <div id="app"></div>
+            <div class="mt-4">
+                <p class="text-muted" style="font-size:0.85rem">
+                    You can also <a href="#" id="load-demo">load an example delta file</a> to try it out.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        $('#sidebar-container').load('sidebar.html');
+    });
+</script>
+<script src="deltavis.js"></script>
+<script>
+    var vis = initDeltaVis(document.getElementById("app"));
+
+    document.getElementById("load-demo").addEventListener("click", function(e) {
+        e.preventDefault();
+        fetch("demo-data/0457_vs_0607.delta")
+            .then(function(r) { return r.text(); })
+            .then(function(content) { vis.handleFileContent(content); });
+    });
+</script>
+</body>
+</html>
