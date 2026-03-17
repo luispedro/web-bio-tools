@@ -269,10 +269,29 @@ function formatTickLabel(val) {
     return String(Math.round(val));
 }
 
-function renderDotPlot(delta) {
+// Render the dot plot SVG.
+// rotation: fraction of the total reference length to shift the x-axis
+//           origin (0–1).  Treats the reference as circular so coordinates
+//           wrap around.  Tick labels always show original positions.
+function renderDotPlot(delta, rotation) {
+    rotation = rotation || 0;
     const layout = computeLayout(delta);
-    const viewBox = `0 0 ${PLOT.totalWidth} ${PLOT.totalHeight}`;
+    const L = layout.totalRefLen;
+    const rotBp = rotation * L;
 
+    // Shift a global reference position by the rotation offset.
+    // When rotBp is 0 we skip the modulo so that position L maps to the
+    // right edge rather than wrapping to 0.
+    function shiftRef(globalPos) {
+        if (rotBp === 0) return globalPos;
+        return ((globalPos - rotBp) % L + L) % L;
+    }
+
+    // Global position of the wrap boundary (genome coordinate that maps
+    // to display-x = 0).
+    const boundaryGlobal = ((rotBp % L) + L) % L;
+
+    const viewBox = `0 0 ${PLOT.totalWidth} ${PLOT.totalHeight}`;
     const svg = svgEl("svg", {
         viewBox,
         width: "100%",
@@ -297,33 +316,69 @@ function renderDotPlot(delta) {
         })
     );
 
-    // Alignment lines
+    // Alignment lines (with rotation-aware wrapping)
     const alignG = svgEl("g", {});
     for (const section of delta.alignmentSections) {
+        const refOffset = layout.refOffsets.get(section.refId) || 0;
         for (const a of section.alignments) {
+            const globalStart = refOffset + a.refStart;
+            const globalEnd = refOffset + a.refEnd;
             const isForward = a.queryStart <= a.queryEnd;
-            alignG.appendChild(
-                svgEl("line", {
-                    x1: toSvgX(layout, section.refId, a.refStart),
-                    y1: toSvgY(layout, section.queryId, a.queryStart),
-                    x2: toSvgX(layout, section.refId, a.refEnd),
-                    y2: toSvgY(layout, section.queryId, a.queryEnd),
-                    stroke: isForward ? "#00BFFF" : "#9933FF",
-                    "stroke-width": 2,
-                    "stroke-linecap": "round",
-                })
-            );
+            const color = isForward ? "#00BFFF" : "#9933FF";
+            const lineAttrs = { stroke: color, "stroke-width": 2, "stroke-linecap": "round" };
+
+            const y1 = toSvgY(layout, section.queryId, a.queryStart);
+            const y2 = toSvgY(layout, section.queryId, a.queryEnd);
+
+            const sStart = shiftRef(globalStart);
+            const sEnd = shiftRef(globalEnd);
+
+            if (rotBp === 0 || sStart <= sEnd) {
+                // No wrapping — single line
+                alignG.appendChild(svgEl("line", {
+                    x1: PLOT.marginLeft + sStart * layout.scaleX, y1,
+                    x2: PLOT.marginLeft + sEnd * layout.scaleX, y2,
+                    ...lineAttrs,
+                }));
+            } else {
+                // Alignment crosses the wrap boundary — split into two segments.
+                const refSpan = globalEnd - globalStart;
+                const frac = refSpan > 0 ? (boundaryGlobal - globalStart) / refSpan : 0;
+                const qMid = a.queryStart + frac * (a.queryEnd - a.queryStart);
+                const yMid = toSvgY(layout, section.queryId, qMid);
+
+                // Right segment: sStart → right edge
+                alignG.appendChild(svgEl("line", {
+                    x1: PLOT.marginLeft + sStart * layout.scaleX, y1,
+                    x2: PLOT.marginLeft + PLOT.dataWidth, y2: yMid,
+                    ...lineAttrs,
+                }));
+                // Left segment: left edge → sEnd
+                alignG.appendChild(svgEl("line", {
+                    x1: PLOT.marginLeft, y1: yMid,
+                    x2: PLOT.marginLeft + sEnd * layout.scaleX, y2,
+                    ...lineAttrs,
+                }));
+            }
         }
     }
     svg.appendChild(alignG);
 
-    // X-axis ticks
-    const tickInterval = niceInterval(layout.totalRefLen);
-    const ticks = generateTicks(0, layout.totalRefLen, tickInterval);
+    // X-axis ticks — positions are in original genome coordinates,
+    // placed at their rotated display positions.
+    const tickInterval = niceInterval(L);
+    const ticks = generateTicks(0, L, tickInterval);
     const axisY = PLOT.marginTop + PLOT.dataHeight;
     const xAxisG = svgEl("g", {});
+    const seenX = new Set();
     for (const tick of ticks) {
-        const x = PLOT.marginLeft + tick * layout.scaleX;
+        const shifted = shiftRef(tick);
+        const x = PLOT.marginLeft + shifted * layout.scaleX;
+        // Deduplicate ticks that map to the same display position
+        // (e.g. tick 0 and tick L in circular view).
+        const xKey = Math.round(x * 10);
+        if (seenX.has(xKey)) continue;
+        seenX.add(xKey);
         xAxisG.appendChild(
             svgEl("line", {
                 x1: x, y1: axisY, x2: x, y2: axisY + 6,
@@ -539,9 +594,44 @@ function initDeltaVis(container) {
         Object.assign(info.style, { color: "#666", fontSize: "0.85rem", marginBottom: "0.5rem" });
         info.textContent =
             `${delta.alignmentSections.length} section(s), ${totalAlignments} alignment(s)`;
-
         wrapper.appendChild(info);
-        wrapper.appendChild(renderDotPlot(delta));
+
+        // Rotation control
+        const rotRow = document.createElement("div");
+        rotRow.className = "form-group mb-2";
+        Object.assign(rotRow.style, { display: "flex", alignItems: "center", gap: "0.75rem" });
+
+        const rotLabel = document.createElement("label");
+        rotLabel.textContent = "Rotate reference";
+        Object.assign(rotLabel.style, { margin: "0", whiteSpace: "nowrap", fontSize: "0.85rem" });
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.className = "custom-range";
+        slider.min = "0";
+        slider.max = "100";
+        slider.value = "0";
+        slider.step = "1";
+        slider.style.flex = "1";
+
+        const pctLabel = document.createElement("span");
+        pctLabel.textContent = "0%";
+        Object.assign(pctLabel.style, { minWidth: "3rem", textAlign: "right", fontSize: "0.85rem" });
+
+        rotRow.append(rotLabel, slider, pctLabel);
+        wrapper.appendChild(rotRow);
+
+        // SVG container (replaced on rotation change)
+        const svgContainer = document.createElement("div");
+        svgContainer.appendChild(renderDotPlot(delta, 0));
+        wrapper.appendChild(svgContainer);
+
+        slider.addEventListener("input", () => {
+            const pct = parseInt(slider.value, 10);
+            pctLabel.textContent = pct + "%";
+            svgContainer.innerHTML = "";
+            svgContainer.appendChild(renderDotPlot(delta, pct / 100));
+        });
 
         const btnRow = document.createElement("div");
         btnRow.style.marginTop = "1rem";
