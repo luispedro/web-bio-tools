@@ -338,32 +338,44 @@ function renderDotPlot(delta, rotation, plotSize) {
             const sStart = shiftRef(globalStart);
             const sEnd = shiftRef(globalEnd);
 
+            // Tooltip with original genomic coordinates
+            const tip = section.refId + ":" + a.refStart + "–" + a.refEnd
+                + " vs " + section.queryId + ":" + a.queryStart + "–" + a.queryEnd
+                + " (" + (isForward ? "fwd" : "rev") + ")";
+            const titleEl = svgEl("title", {}, [svgText(tip)]);
+
             if (rotBp === 0 || sStart <= sEnd) {
                 // No wrapping — single line
-                alignG.appendChild(svgEl("line", {
+                const line = svgEl("line", {
                     x1: P.marginLeft + sStart * layout.scaleX, y1,
                     x2: P.marginLeft + sEnd * layout.scaleX, y2,
                     ...lineAttrs,
-                }));
+                });
+                line.appendChild(titleEl);
+                alignG.appendChild(line);
             } else {
                 // Alignment crosses the wrap boundary — split into two segments.
+                // Wrap both in a <g> so the tooltip covers both halves.
                 const refSpan = globalEnd - globalStart;
                 const frac = refSpan > 0 ? (boundaryGlobal - globalStart) / refSpan : 0;
                 const qMid = a.queryStart + frac * (a.queryEnd - a.queryStart);
                 const yMid = toSvgY(P, layout, section.queryId, qMid);
 
+                const g = svgEl("g", {});
+                g.appendChild(titleEl);
                 // Right segment: sStart → right edge
-                alignG.appendChild(svgEl("line", {
+                g.appendChild(svgEl("line", {
                     x1: P.marginLeft + sStart * layout.scaleX, y1,
                     x2: P.marginLeft + P.dataWidth, y2: yMid,
                     ...lineAttrs,
                 }));
                 // Left segment: left edge → sEnd
-                alignG.appendChild(svgEl("line", {
+                g.appendChild(svgEl("line", {
                     x1: P.marginLeft, y1: yMid,
                     x2: P.marginLeft + sEnd * layout.scaleX, y2,
                     ...lineAttrs,
                 }));
+                alignG.appendChild(g);
             }
         }
     }
