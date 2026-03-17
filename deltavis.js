@@ -155,16 +155,23 @@ function parseDelta(input) {
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const PLOT = {
-    dataWidth: 700,
-    dataHeight: 700,
-    marginLeft: 100,
-    marginBottom: 60,
-    marginTop: 20,
-    marginRight: 20,
-};
-PLOT.totalWidth = PLOT.marginLeft + PLOT.dataWidth + PLOT.marginRight;
-PLOT.totalHeight = PLOT.marginTop + PLOT.dataHeight + PLOT.marginBottom;
+// Build a PLOT dimensions object.  dataSize controls the width and height
+// of the data area (the square where alignments are drawn).
+function makePlot(dataSize) {
+    const p = {
+        dataWidth: dataSize,
+        dataHeight: dataSize,
+        marginLeft: 100,
+        marginBottom: 60,
+        marginTop: 20,
+        marginRight: 20,
+    };
+    p.totalWidth = p.marginLeft + p.dataWidth + p.marginRight;
+    p.totalHeight = p.marginTop + p.dataHeight + p.marginBottom;
+    return p;
+}
+
+const PLOT_DEFAULT_SIZE = 700;
 
 // Collect unique sequences in order of first appearance.
 function collectUnique(sections, idKey, lenKey) {
@@ -191,7 +198,7 @@ function computeOffsets(seqs) {
     return { offsets, total };
 }
 
-function computeLayout(delta) {
+function computeLayout(delta, P) {
     const refs = collectUnique(delta.alignmentSections, "refId", "refLen");
     const queries = collectUnique(delta.alignmentSections, "queryId", "queryLen");
     const { offsets: refOffsets, total: totalRefLen } = computeOffsets(refs);
@@ -203,20 +210,15 @@ function computeLayout(delta) {
         queryOffsets,
         totalRefLen,
         totalQueryLen,
-        scaleX: totalRefLen > 0 ? PLOT.dataWidth / totalRefLen : 1,
-        scaleY: totalQueryLen > 0 ? PLOT.dataHeight / totalQueryLen : 1,
+        scaleX: totalRefLen > 0 ? P.dataWidth / totalRefLen : 1,
+        scaleY: totalQueryLen > 0 ? P.dataHeight / totalQueryLen : 1,
     };
 }
 
 // Coordinate transforms
-function toSvgX(layout, seqName, pos) {
-    const offset = layout.refOffsets.get(seqName) || 0;
-    return PLOT.marginLeft + (offset + pos) * layout.scaleX;
-}
-
-function toSvgY(layout, seqName, pos) {
+function toSvgY(P, layout, seqName, pos) {
     const offset = layout.queryOffsets.get(seqName) || 0;
-    return PLOT.marginTop + PLOT.dataHeight - (offset + pos) * layout.scaleY;
+    return P.marginTop + P.dataHeight - (offset + pos) * layout.scaleY;
 }
 
 // SVG element helpers
@@ -273,9 +275,12 @@ function formatTickLabel(val) {
 // rotation: fraction of the total reference length to shift the x-axis
 //           origin (0–1).  Treats the reference as circular so coordinates
 //           wrap around.  Tick labels always show original positions.
-function renderDotPlot(delta, rotation) {
+// plotSize: side length (in SVG units) of the square data area.
+function renderDotPlot(delta, rotation, plotSize) {
     rotation = rotation || 0;
-    const layout = computeLayout(delta);
+    plotSize = plotSize || PLOT_DEFAULT_SIZE;
+    const P = makePlot(plotSize);
+    const layout = computeLayout(delta, P);
     const L = layout.totalRefLen;
     const rotBp = rotation * L;
 
@@ -291,18 +296,18 @@ function renderDotPlot(delta, rotation) {
     // to display-x = 0).
     const boundaryGlobal = ((rotBp % L) + L) % L;
 
-    const viewBox = `0 0 ${PLOT.totalWidth} ${PLOT.totalHeight}`;
+    const viewBox = `0 0 ${P.totalWidth} ${P.totalHeight}`;
     const svg = svgEl("svg", {
         viewBox,
         width: "100%",
-        style: "max-width: 900px",
+        style: "max-width: " + (P.totalWidth + 20) + "px",
     });
 
     // Background
     svg.appendChild(
         svgEl("rect", {
             x: 0, y: 0,
-            width: PLOT.totalWidth, height: PLOT.totalHeight,
+            width: P.totalWidth, height: P.totalHeight,
             fill: "white",
         })
     );
@@ -310,8 +315,8 @@ function renderDotPlot(delta, rotation) {
     // Data area border
     svg.appendChild(
         svgEl("rect", {
-            x: PLOT.marginLeft, y: PLOT.marginTop,
-            width: PLOT.dataWidth, height: PLOT.dataHeight,
+            x: P.marginLeft, y: P.marginTop,
+            width: P.dataWidth, height: P.dataHeight,
             fill: "white", stroke: "#ccc", "stroke-width": 1,
         })
     );
@@ -327,8 +332,8 @@ function renderDotPlot(delta, rotation) {
             const color = isForward ? "#00BFFF" : "#9933FF";
             const lineAttrs = { stroke: color, "stroke-width": 2, "stroke-linecap": "round" };
 
-            const y1 = toSvgY(layout, section.queryId, a.queryStart);
-            const y2 = toSvgY(layout, section.queryId, a.queryEnd);
+            const y1 = toSvgY(P, layout, section.queryId, a.queryStart);
+            const y2 = toSvgY(P, layout, section.queryId, a.queryEnd);
 
             const sStart = shiftRef(globalStart);
             const sEnd = shiftRef(globalEnd);
@@ -336,8 +341,8 @@ function renderDotPlot(delta, rotation) {
             if (rotBp === 0 || sStart <= sEnd) {
                 // No wrapping — single line
                 alignG.appendChild(svgEl("line", {
-                    x1: PLOT.marginLeft + sStart * layout.scaleX, y1,
-                    x2: PLOT.marginLeft + sEnd * layout.scaleX, y2,
+                    x1: P.marginLeft + sStart * layout.scaleX, y1,
+                    x2: P.marginLeft + sEnd * layout.scaleX, y2,
                     ...lineAttrs,
                 }));
             } else {
@@ -345,18 +350,18 @@ function renderDotPlot(delta, rotation) {
                 const refSpan = globalEnd - globalStart;
                 const frac = refSpan > 0 ? (boundaryGlobal - globalStart) / refSpan : 0;
                 const qMid = a.queryStart + frac * (a.queryEnd - a.queryStart);
-                const yMid = toSvgY(layout, section.queryId, qMid);
+                const yMid = toSvgY(P, layout, section.queryId, qMid);
 
                 // Right segment: sStart → right edge
                 alignG.appendChild(svgEl("line", {
-                    x1: PLOT.marginLeft + sStart * layout.scaleX, y1,
-                    x2: PLOT.marginLeft + PLOT.dataWidth, y2: yMid,
+                    x1: P.marginLeft + sStart * layout.scaleX, y1,
+                    x2: P.marginLeft + P.dataWidth, y2: yMid,
                     ...lineAttrs,
                 }));
                 // Left segment: left edge → sEnd
                 alignG.appendChild(svgEl("line", {
-                    x1: PLOT.marginLeft, y1: yMid,
-                    x2: PLOT.marginLeft + sEnd * layout.scaleX, y2,
+                    x1: P.marginLeft, y1: yMid,
+                    x2: P.marginLeft + sEnd * layout.scaleX, y2,
                     ...lineAttrs,
                 }));
             }
@@ -368,12 +373,12 @@ function renderDotPlot(delta, rotation) {
     // placed at their rotated display positions.
     const tickInterval = niceInterval(L);
     const ticks = generateTicks(0, L, tickInterval);
-    const axisY = PLOT.marginTop + PLOT.dataHeight;
+    const axisY = P.marginTop + P.dataHeight;
     const xAxisG = svgEl("g", {});
     const seenX = new Set();
     for (const tick of ticks) {
         const shifted = shiftRef(tick);
-        const x = PLOT.marginLeft + shifted * layout.scaleX;
+        const x = P.marginLeft + shifted * layout.scaleX;
         // Deduplicate ticks that map to the same display position
         // (e.g. tick 0 and tick L in circular view).
         const xKey = Math.round(x * 10);
@@ -399,10 +404,10 @@ function renderDotPlot(delta, rotation) {
     for (const seq of layout.queries) {
         const offset = layout.queryOffsets.get(seq.name) || 0;
         const midpoint = offset + seq.len / 2;
-        const y = PLOT.marginTop + PLOT.dataHeight - midpoint * layout.scaleY;
+        const y = P.marginTop + P.dataHeight - midpoint * layout.scaleY;
         yAxisG.appendChild(
             svgEl("text", {
-                x: PLOT.marginLeft - 8, y,
+                x: P.marginLeft - 8, y,
                 "text-anchor": "end", "dominant-baseline": "central",
                 "font-size": 11, fill: "#333",
             }, [svgText(seq.name)])
@@ -415,11 +420,11 @@ function renderDotPlot(delta, rotation) {
     for (const seq of layout.queries) {
         const offset = layout.queryOffsets.get(seq.name) || 0;
         if (offset > 0) {
-            const y = PLOT.marginTop + PLOT.dataHeight - offset * layout.scaleY;
+            const y = P.marginTop + P.dataHeight - offset * layout.scaleY;
             sepG.appendChild(
                 svgEl("line", {
-                    x1: PLOT.marginLeft, y1: y,
-                    x2: PLOT.marginLeft + PLOT.dataWidth, y2: y,
+                    x1: P.marginLeft, y1: y,
+                    x2: P.marginLeft + P.dataWidth, y2: y,
                     stroke: "#ccc", "stroke-width": 1,
                     "stroke-dasharray": "4,4",
                 })
@@ -433,10 +438,10 @@ function renderDotPlot(delta, rotation) {
         delta.alignmentSections.length > 0
             ? delta.alignmentSections[0].refId
             : "Reference";
-    const xLabelY = PLOT.marginTop + PLOT.dataHeight + 45;
+    const xLabelY = P.marginTop + P.dataHeight + 45;
     svg.appendChild(
         svgEl("text", {
-            x: PLOT.marginLeft + PLOT.dataWidth / 2, y: xLabelY,
+            x: P.marginLeft + P.dataWidth / 2, y: xLabelY,
             "text-anchor": "middle", "font-size": 13, fill: "#333",
         }, [svgText(refName)])
     );
@@ -621,17 +626,47 @@ function initDeltaVis(container) {
         rotRow.append(rotLabel, slider, pctLabel);
         wrapper.appendChild(rotRow);
 
-        // SVG container (replaced on rotation change)
+        // Size control
+        const sizeRow = document.createElement("div");
+        sizeRow.className = "form-group mb-2";
+        Object.assign(sizeRow.style, { display: "flex", alignItems: "center", gap: "0.75rem" });
+
+        const sizeLabel = document.createElement("label");
+        sizeLabel.textContent = "Plot size";
+        Object.assign(sizeLabel.style, { margin: "0", whiteSpace: "nowrap", fontSize: "0.85rem" });
+
+        const sizeSlider = document.createElement("input");
+        sizeSlider.type = "range";
+        sizeSlider.className = "custom-range";
+        sizeSlider.min = "300";
+        sizeSlider.max = "1500";
+        sizeSlider.value = String(PLOT_DEFAULT_SIZE);
+        sizeSlider.step = "50";
+        sizeSlider.style.flex = "1";
+
+        const sizeValueLabel = document.createElement("span");
+        sizeValueLabel.textContent = PLOT_DEFAULT_SIZE + "px";
+        Object.assign(sizeValueLabel.style, { minWidth: "4rem", textAlign: "right", fontSize: "0.85rem" });
+
+        sizeRow.append(sizeLabel, sizeSlider, sizeValueLabel);
+        wrapper.appendChild(sizeRow);
+
+        // SVG container (replaced on rotation or size change)
         const svgContainer = document.createElement("div");
-        svgContainer.appendChild(renderDotPlot(delta, 0));
+        svgContainer.appendChild(renderDotPlot(delta, 0, PLOT_DEFAULT_SIZE));
         wrapper.appendChild(svgContainer);
 
-        slider.addEventListener("input", () => {
-            const pct = parseInt(slider.value, 10);
-            pctLabel.textContent = pct + "%";
+        function rerender() {
+            const rot = parseInt(slider.value, 10) / 100;
+            const size = parseInt(sizeSlider.value, 10);
+            pctLabel.textContent = parseInt(slider.value, 10) + "%";
+            sizeValueLabel.textContent = size + "px";
             svgContainer.innerHTML = "";
-            svgContainer.appendChild(renderDotPlot(delta, pct / 100));
-        });
+            svgContainer.appendChild(renderDotPlot(delta, rot, size));
+        }
+
+        slider.addEventListener("input", rerender);
+        sizeSlider.addEventListener("input", rerender);
 
         const btnRow = document.createElement("div");
         btnRow.style.marginTop = "1rem";
