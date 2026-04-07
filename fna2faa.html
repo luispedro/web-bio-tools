@@ -191,8 +191,57 @@ function renderTranslation(container, header, translation) {
 
 let lastTranslations = [];
 
+function parseTranslationRequest(value) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+    const normalized = value.trim().toLowerCase();
+    const frameMap = {
+        one: '+1',
+        '1': '+1',
+        '2': '+2',
+        '3': '+3',
+        '-1': '-1',
+        '-2': '-2',
+        '-3': '-3',
+    };
+    if (Object.prototype.hasOwnProperty.call(frameMap, normalized)) {
+        return {
+            mode: 'single',
+            frame: frameMap[normalized],
+        };
+    }
+    if (['all', 'six'].includes(normalized)) {
+        return {
+            mode: 'all',
+            frame: null,
+        };
+    }
+    return null;
+}
+
+function parseBooleanParam(value) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+        return true;
+    }
+    if (['0', 'false', 'no', 'off'].includes(normalized)) {
+        return false;
+    }
+    return null;
+}
+
 async function bootstrap() {
     await init();
+    const params = new URLSearchParams(window.location.search);
+    const input = document.getElementById('fna-input');
+    const autoTranslateRequest = parseTranslationRequest(params.get('translate'));
+    const autoStopAtFirstStop = parseBooleanParam(
+        params.get('stop_at_first_stop') ?? params.get('stop')
+    );
     const outputCard = document.getElementById('translation-output');
     const resultsContainer = document.getElementById('translation-results');
     const errorBox = document.getElementById('translation-error');
@@ -215,11 +264,22 @@ async function bootstrap() {
     if (loadExampleLink) {
         loadExampleLink.addEventListener('click', (event) => {
             event.preventDefault();
-            const input = document.getElementById('fna-input');
             if (input) {
                 input.value = exampleFastaEntry;
             }
         });
+    }
+
+    if (input && params.has('nuc')) {
+        input.value = params.get('nuc') || '';
+    }
+
+    if (stopOption && autoStopAtFirstStop !== null) {
+        stopOption.checked = autoStopAtFirstStop;
+    }
+
+    if (frameSelect && autoTranslateRequest && autoTranslateRequest.frame) {
+        frameSelect.value = autoTranslateRequest.frame;
     }
 
     function resetOutput() {
@@ -326,6 +386,17 @@ async function bootstrap() {
 
     if (translateAllButton) {
         translateAllButton.addEventListener('click', () => translateRecords('all'));
+    }
+
+    if (params.has('translate')) {
+        if (autoTranslateRequest) {
+            translateRecords(autoTranslateRequest.mode);
+        } else {
+            errorBox.textContent = `Invalid translate mode: ${params.get('translate')}`;
+            errorBox.style.display = 'block';
+        }
+    } else if (params.has('nuc')) {
+        translateRecords('single');
     }
 }
 
