@@ -276,6 +276,24 @@ function formatTickLabel(val) {
 //           origin (0–1).  Treats the reference as circular so coordinates
 //           wrap around.  Tick labels always show original positions.
 // plotSize: side length (in SVG units) of the square data area.
+// Create a new delta with query coordinates flipped (as if reverse-complemented).
+// For each alignment, queryStart and queryEnd are mirrored within their sequence:
+//   newPos = queryLen - pos + 1
+// and then start/end are swapped so the line direction reverses.
+function flipQueryDelta(delta) {
+    return {
+        ...delta,
+        alignmentSections: delta.alignmentSections.map(sec => ({
+            ...sec,
+            alignments: sec.alignments.map(a => ({
+                ...a,
+                queryStart: sec.queryLen - a.queryStart + 1,
+                queryEnd: sec.queryLen - a.queryEnd + 1,
+            })),
+        })),
+    };
+}
+
 function renderDotPlot(delta, rotation, plotSize) {
     rotation = rotation || 0;
     plotSize = plotSize || PLOT_DEFAULT_SIZE;
@@ -663,7 +681,18 @@ function initDeltaVis(container) {
         sizeRow.append(sizeLabel, sizeSlider, sizeValueLabel);
         wrapper.appendChild(sizeRow);
 
-        // SVG container (replaced on rotation or size change)
+        // Flip query toggle
+        let flipped = false;
+        const flipRow = document.createElement("div");
+        flipRow.className = "form-group mb-2";
+        const flipBtn = document.createElement("button");
+        flipBtn.type = "button";
+        flipBtn.className = "btn btn-sm btn-outline-secondary";
+        flipBtn.textContent = "Flip query";
+        flipRow.appendChild(flipBtn);
+        wrapper.appendChild(flipRow);
+
+        // SVG container (replaced on rotation, size, or flip change)
         const svgContainer = document.createElement("div");
         svgContainer.appendChild(renderDotPlot(delta, 0, PLOT_DEFAULT_SIZE));
         wrapper.appendChild(svgContainer);
@@ -673,9 +702,19 @@ function initDeltaVis(container) {
             const size = parseInt(sizeSlider.value, 10);
             pctLabel.textContent = parseInt(slider.value, 10) + "%";
             sizeValueLabel.textContent = size + "px";
+            const d = flipped ? flipQueryDelta(delta) : delta;
             svgContainer.innerHTML = "";
-            svgContainer.appendChild(renderDotPlot(delta, rot, size));
+            svgContainer.appendChild(renderDotPlot(d, rot, size));
         }
+
+        flipBtn.addEventListener("click", () => {
+            flipped = !flipped;
+            flipBtn.textContent = flipped ? "Flip query (flipped)" : "Flip query";
+            flipBtn.className = flipped
+                ? "btn btn-sm btn-secondary"
+                : "btn btn-sm btn-outline-secondary";
+            rerender();
+        });
 
         slider.addEventListener("input", rerender);
         sizeSlider.addEventListener("input", rerender);
