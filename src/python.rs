@@ -30,12 +30,11 @@ impl From<AlignmentResult> for PyAlignmentResult {
     }
 }
 
-
 #[pymodule]
 mod web_bio_tools {
-    use pyo3::prelude::*;
-    use pyo3::exceptions::PyValueError;
     use crate::alignment;
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
 
     #[pymodule_export]
     use super::PyAlignmentResult;
@@ -110,11 +109,9 @@ mod web_bio_tools {
         alignment::needleman_wunsch_blosum62_internal(seq1, seq2, gap_open, gap_extend).into()
     }
 
-
     #[pyfunction]
     fn translate_dna_frame(seq: &str, frame: i8, stop_at_first_stop: bool) -> PyResult<String> {
         crate::translation::translate_frame(seq, frame, stop_at_first_stop)
             .map_err(|err| PyErr::new::<PyValueError, _>(err))
     }
 }
-
