@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All-by-all Sequence Alignment</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <style>
+        #pair-alignment pre {
+            padding-top: 10px;
+            font-family: monospace;
+        }
+        .match { color: green; }
+        .partial { color: darkorange; }
+        .mismatch { color: maroon; }
+        .gap { color: #333333; }
+        .btn-group button {
+            margin-right: 20px;
+        }
+    </style>
+
+    <script type="module">
+        import init, {
+            all_by_all_row,
+            smith_waterman_custom,
+            smith_waterman_blosum62,
+            needleman_wunsch_custom,
+            needleman_wunsch_blosum62
+        } from './pkg/web_bio_tools.js';
+
+        async function run() {
+            await init();
+
+            function parseFastaRecords(text) {
+                const trimmed = text.trim();
+                if (!trimmed) {
+                    return [];
+                }
+                const lines = trimmed.split(/\r?\n/);
+                const records = [];
+                let currentName = null;
+                let currentSeq = [];
+                let sawHeader = false;
+
+                for (const rawLine of lines) {
+                    const line = rawLine.trim();
+                    if (!line) {
+                        continue;
+                    }
+                    if (line.startsWith('>')) {
+                        if (currentName !== null) {
+                            records.push({ name: currentName, sequence: currentSeq.join('') });
+                        }
+                        currentName = line.substring(1).trim() || `Sequence ${records.length + 1}`;
+                        currentSeq = [];
+                        sawHeader = true;
+                    } else {
+                        currentSeq.push(line.replace(/\s+/g, ''));
+                    }
+                }
+
+                if (currentName !== null) {
+                    records.push({ name: currentName, sequence: currentSeq.join('') });
+                } else if (!sawHeader) {
+                    const sequence = lines.join('').replace(/\s+/g, '');
+                    if (sequence.length > 0) {
+                        records.push({ name: 'Sequence 1', sequence });
+                    }
+                }
+
+                return records.filter(r => r.sequence.length > 0);
+            }
+
+            function currentParams(algorithm) {
+                return {
+                    global: algorithm === 'nw',
+                    blosum62: document.getElementById('weight-option').value === 'blosum62',
+                    matchScore: parseFloat(document.getElementById('match-score').value),
+                    mismatchPenalty: parseFloat(document.getElementById('mismatch-penalty').value),
+                    gapOpen: parseFloat(document.getElementById('gap-open').value),
+                    gapExtend: parseFloat(document.getElementById('gap-extend').value)
+                };
+            }
+
+            function alignPair(seq1, seq2, p) {
+                if (p.global) {
+                    return p.blosum62
+                        ? needleman_wunsch_blosum62(seq1, seq2, p.gapOpen, p.gapExtend)
+                        : needleman_wunsch_custom(seq1, seq2, p.matchScore, p.mismatchPenalty, p.gapOpen, p.gapExtend);
+                }
+                return p.blosum62
+                    ? smith_waterman_blosum62(seq1, seq2, p.gapOpen, p.gapExtend)
+                    : smith_waterman_custom(seq1, seq2, p.matchScore, p.mismatchPenalty, p.gapOpen, p.gapExtend);
+            }
+
+            // Computes the matrix one row at a time, yielding to the browser between
+            // rows so that the progress bar actually paints on large inputs.
+            function computeMatrix(records, p, onProgress) {
+                const n = records.length;
+                const seqs = records.map(r => r.sequence);
+                const matrix = Array.from({ length: n }, () => new Array(n).fill(null));
+                return new Promise((resolve, reject) => {
+                    let row = 0;
+                    function step() {
+                        try {
+                            const summaries = all_by_all_row(
+                                seqs, row, p.global, p.blosum62,
+                                p.matchScore, p.mismatchPenalty, p.gapOpen, p.gapExtend);
+                            summaries.forEach((summary, k) => {
+                                matrix[row][row + k] = summary;
+                                matrix[row + k][row] = summary;
+                            });
+                        } catch (err) {
+                            reject(err);
+                            return;
+                        }
+                        row += 1;
+                        onProgress(row, n);
+                        if (row < n) {
+                            setTimeout(step, 0);
+                        } else {
+                            resolve(matrix);
+                        }
+                    }
+                    step();
+                });
+            }
+
+            // Every metric is a function of one pair summary plus the two full
+            // sequence lengths, which the normalized identity needs.
+            const METRICS = {
+                identity: {
+                    label: 'Identity',
+                    get: cell => 100 * cell.identity,
+                    format: v => v.toFixed(1),
+                    unit: '%',
+                    fixedRange: [0, 100]
+                },
+                normalized: {
+                    label: 'Identity over shorter sequence',
+                    // A local alignment can cover a handful of residues and still be
+                    // (say) 50% identical, which makes unrelated sequences look
+                    // related. Dividing the identical residues by the shorter of the
+                    // two input lengths folds coverage into the number.
+                    get: (cell, lenA, lenB) =>
+                        100 * cell.identity * cell.aligned_length / Math.min(lenA, lenB),
+                    format: v => v.toFixed(1),
+                    unit: '%',
+                    fixedRange: [0, 100]
+                },
+                score: {
+                    label: 'Alignment score',
+                    get: cell => cell.score,
+                    format: v => (Math.abs(v) >= 1000 ? v.toFixed(0) : v.toFixed(1)),
+                    unit: ''
+                },
+                length: {
+                    label: 'Aligned length',
+                    get: cell => cell.aligned_length,
+                    format: v => v.toFixed(0),
+                    unit: ' aa'
+                }
+            };
+
+            function colorFor(fraction) {
+                const f = Math.max(0, Math.min(1, fraction));
+                const lightness = 96 - 58 * f;
+                return `hsl(205, 62%, ${lightness}%)`;
+            }
+
+            function escapeHtml(text) {
+                return String(text).replace(/[&<>"]/g, c =>
+                    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            }
+
+            // The diagonal is a trivial self-comparison, so it is excluded from the
+            // colour scale: otherwise self-scores would flatten every other cell.
+            function offDiagonalRange(matrix, lengths, metric) {
+                let min = Infinity;
+                let max = -Infinity;
+                for (let i = 0; i < matrix.length; i++) {
+                    for (let j = 0; j < matrix.length; j++) {
+                        if (i === j) continue;
+                        const v = metric.get(matrix[i][j], lengths[i], lengths[j]);
+                        if (v < min) min = v;
+                        if (v > max) max = v;
+                    }
+                }
+                if (!isFinite(min)) return [0, 1];
+                if (min === max) return [min, min + 1];
+                return [min, max];
+            }
+
+            function renderMatrix() {
+                const state = window.lastMatrix;
+                if (!state) return;
+                const metric = METRICS[document.getElementById('metric-option').value];
+                const { names, matrix } = state;
+                const lengths = state.seqs.map(seq => seq.length);
+                const n = names.length;
+                const [lo, hi] = metric.fixedRange || offDiagonalRange(matrix, lengths, metric);
+
+                let html = '<table class="matrix-table"><thead><tr><th></th>';
+                for (let j = 0; j < n; j++) {
+                    html += `<th title="${escapeHtml(names[j])}">${j + 1}</th>`;
+                }
+                html += '</tr></thead><tbody>';
+                for (let i = 0; i < n; i++) {
+                    html += `<tr><th title="${escapeHtml(names[i])}">${i + 1}. ${escapeHtml(names[i])}</th>`;
+                    for (let j = 0; j < n; j++) {
+                        const value = metric.get(matrix[i][j], lengths[i], lengths[j]);
+                        const fraction = (value - lo) / (hi - lo);
+                        const title = `${escapeHtml(names[i])} vs ${escapeHtml(names[j])}: `
+                            + `${metric.format(value)}${metric.unit}`;
+                        if (i === j) {
+                            html += `<td class="matrix-cell is-diagonal" title="${title}">`
+                                + `${metric.format(value)}</td>`;
+                        } else {
+                            const style = `background-color: ${colorFor(fraction)};`
+                                + (fraction > 0.62 ? ' color: #fff;' : '');
+                            html += `<td class="matrix-cell" style="${style}" title="${title}" `
+                                + `data-i="${i}" data-j="${j}">${metric.format(value)}</td>`;
+                        }
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+
+                document.getElementById('matrix-container').innerHTML = html;
+                document.getElementById('legend-label').textContent = metric.label;
+                document.getElementById('legend-low').textContent = metric.format(lo) + metric.unit;
+                document.getElementById('legend-high').textContent = metric.format(hi) + metric.unit;
+                document.getElementById('legend-gradient').style.background =
+                    `linear-gradient(90deg, ${colorFor(0)}, ${colorFor(0.5)}, ${colorFor(1)})`;
+                document.getElementById('results').style.display = 'block';
+            }
+
+            function renderAlignmentLines(result) {
+                const seq1 = result.aligned_seq1;
+                const seq2 = result.aligned_seq2;
+                const markup = result.alignment_markup;
+                let final = '';
+                let html1 = '', htmlm = '', html2 = '';
+                for (let i = 0; i < seq1.length; i++) {
+                    const mark = markup[i];
+                    let cls = 'match';
+                    let m = '|';
+                    if (mark === ' ') {
+                        cls = 'gap';
+                        m = ' ';
+                    } else if (mark === ':') {
+                        cls = 'partial';
+                        m = ':';
+                    } else if (mark === '.') {
+                        cls = 'mismatch';
+                        m = 'X';
+                    }
+                    html1 += `<span class="${cls}">${seq1[i]}</span>`;
+                    html2 += `<span class="${cls}">${seq2[i]}</span>`;
+                    htmlm += m;
+                    if (i % 80 === 79) {
+                        final += html1 + '\n' + htmlm + '\n' + html2 + '\n\n\n';
+                        html1 = '';
+                        htmlm = '';
+                        html2 = '';
+                    }
+                }
+                if (html1.length > 0) {
+                    final += html1 + '\n' + htmlm + '\n' + html2 + '\n';
+                }
+                return final;
+            }
+
+            window.showPair = function(i, j) {
+                const state = window.lastMatrix;
+                if (!state) return;
+                // Align in the same orientation the matrix was computed in (lower
+                // index first), so the numbers shown match the cell that was clicked.
+                const [a, b] = i <= j ? [i, j] : [j, i];
+                const result = alignPair(state.seqs[a], state.seqs[b], state.params);
+                const summary = state.matrix[a][b];
+
+                document.getElementById('pair-title').textContent =
+                    `${state.names[a]} vs ${state.names[b]}`;
+                document.getElementById('pair-stats').innerHTML =
+                    `Alignment length: ${summary.aligned_length} `
+                    + `(${(100 * summary.identity).toFixed(2)}% identity, `
+                    + `score ${summary.score.toFixed(2)})`;
+                document.getElementById('pair-result').innerHTML = renderAlignmentLines(result);
+                document.getElementById('pair-alignment').style.display = 'block';
+
+                document.querySelectorAll('.matrix-cell.is-selected')
+                    .forEach(el => el.classList.remove('is-selected'));
+                document.querySelectorAll(
+                    `.matrix-cell[data-i="${a}"][data-j="${b}"], .matrix-cell[data-i="${b}"][data-j="${a}"]`
+                ).forEach(el => el.classList.add('is-selected'));
+            };
+
+            window.downloadMatrix = function() {
+                const state = window.lastMatrix;
+                if (!state) return;
+                const metricKey = document.getElementById('metric-option').value;
+                const metric = METRICS[metricKey];
+                const { names, matrix } = state;
+                const lengths = state.seqs.map(seq => seq.length);
+                let text = 'name\t' + names.join('\t') + '\n';
+                for (let i = 0; i < names.length; i++) {
+                    const row = matrix[i].map((cell, j) =>
+                        metric.format(metric.get(cell, lengths[i], lengths[j])));
+                    text += names[i] + '\t' + row.join('\t') + '\n';
+                }
+                const blob = new Blob([text], { type: 'text/tab-separated-values' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `all-by-all-${metricKey}.tsv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+
+            window.lastMatrix = null;
+
+            window.runAllByAll = async function(algorithm) {
+                const warningEl = document.getElementById('input-warning');
+                const records = parseFastaRecords(document.getElementById('sequences').value);
+                if (records.length < 2) {
+                    warningEl.textContent = 'Please enter at least two sequences in FASTA format. '
+                        + 'You can also load the example sequences.';
+                    warningEl.style.display = 'block';
+                    return;
+                }
+                warningEl.style.display = 'none';
+
+                const seqType = document.getElementById('sequence-type').value;
+                if (seqType === 'dna') {
+                    $('#weight-option').val('uniform').trigger('change');
+                } else if (records.every(r => /^[ATCG]+$/i.test(r.sequence))) {
+                    warningEl.textContent = 'Your sequences look like DNA. Did you mean to use the DNA model?';
+                    warningEl.style.display = 'block';
+                }
+
+                const p = currentParams(algorithm);
+                if (p.gapExtend < p.gapOpen) {
+                    warningEl.textContent = 'Gap extend penalty should be less than the gap open penalty.';
+                    warningEl.style.display = 'block';
+                }
+
+                const progress = document.getElementById('progress-container');
+                const bar = document.getElementById('progress-bar');
+                progress.style.display = 'block';
+                bar.style.width = '0%';
+                bar.textContent = `0 / ${records.length}`;
+                $('.run-button').prop('disabled', true);
+
+                try {
+                    const matrix = await computeMatrix(records, p, (done, total) => {
+                        bar.style.width = `${(100 * done / total).toFixed(1)}%`;
+                        bar.textContent = `${done} / ${total}`;
+                    });
+                    window.lastMatrix = {
+                        names: records.map(r => r.name),
+                        seqs: records.map(r => r.sequence),
+                        matrix,
+                        params: p,
+                        algorithm
+                    };
+                    document.getElementById('matrix-mode').textContent =
+                        algorithm === 'nw' ? 'global' : 'local';
+                    document.getElementById('matrix-count').textContent = records.length;
+                    document.getElementById('pair-alignment').style.display = 'none';
+                    renderMatrix();
+                } catch (err) {
+                    warningEl.textContent = 'Alignment failed: ' + err;
+                    warningEl.style.display = 'block';
+                } finally {
+                    progress.style.display = 'none';
+                    $('.run-button').prop('disabled', false);
+                }
+            };
+
+            $('#matrix-container').on('click', '.matrix-cell[data-i]', function() {
+                window.showPair(parseInt(this.dataset.i, 10), parseInt(this.dataset.j, 10));
+            });
+            $('#metric-option').on('change', function() {
+                renderMatrix();
+                document.getElementById('pair-alignment').style.display = 'none';
+            });
+            $('.run-button').on('click', function() {
+                window.runAllByAll(this.dataset.algorithm);
+            });
+            $('#download-matrix').on('click', function(e) {
+                e.preventDefault();
+                window.downloadMatrix();
+            });
+
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('seqs')) {
+                document.getElementById('sequences').value = params.get('seqs');
+            }
+            if (params.has('gap_open')) {
+                document.getElementById('gap-open').value = params.get('gap_open');
+            }
+            if (params.has('gap_extend')) {
+                document.getElementById('gap-extend').value = params.get('gap_extend');
+            }
+            if (params.has('match_score')) {
+                document.getElementById('match-score').value = params.get('match_score');
+            }
+            if (params.has('mismatch_penalty')) {
+                document.getElementById('mismatch-penalty').value = params.get('mismatch_penalty');
+            }
+            if (params.has('weight')) {
+                document.getElementById('weight-option').value = params.get('weight');
+                $('#weight-option').trigger('change');
+            }
+            if (params.has('seq_type')) {
+                document.getElementById('sequence-type').value = params.get('seq_type');
+                $('#sequence-type').trigger('change');
+            }
+            if (params.has('metric') && METRICS[params.get('metric')]) {
+                document.getElementById('metric-option').value = params.get('metric');
+            }
+            if (params.has('seqs')) {
+                const mode = params.get('mode');
+                window.runAllByAll((mode === 'nw' || mode === 'global') ? 'nw' : 'sw');
+            }
+        }
+
+        run();
+    </script>
+    <script>
+        $(function() {
+            $('#sidebar-container').load('sidebar.html');
+
+            const example_erm = ">SHD1_0881_ErmB\n" +
+                "MNKNIKYSQNFLTSEKVLNQIIKQLNLKETDTVYEIGTGKGHLTTKLAKISKQVTSIELDSHLFNLSSEKLKLNTRVTLIHQDILQFQFPNKQRYKIVGSIPYHLSTQIIKKVVFESHASDIYLIVEEGFYKRTLDIHRTLGLLLHTQVSIQQLLKLPAECFHPKPKVNSVLIKLTRHTTDVPDKYWKLYTYFVSKWVNREYRQLFTKNQFHQAMKHAKVNNLSTVTYEQVLSIFNSYLLFNGRK\n" +
+                ">ErmB_Enterococcus_faecium\n" +
+                "MNKNIKYSQNFLTSEKVLNQIIKQLNLKETDTVYEIGTGKGHLTTKLAKISKQVTSIELDSHLFNLSSEKLKLNTRVTLIHQDILQFQFPNKQRYKIVGSIPYNLSTQIIKKVVFESRASDIYLIVEEGFYKRTLDIHRTLGLLLHTQVSIQQLLKLPAECFHPKPKVNSVLIKLTRHTTDVPDKYWKLYTYFVSKWVNREYRQLFTKNQFHQAMKHAKVNNLSTITYEQVLSIFNSYLLFNGRKLIL\n" +
+                ">ERMA_STAAU\n" +
+                "MNQKNPKDTQNFITSKKHVKEILNHTNISKQDNVIEIGSGKGHFTKELVKMSRSVTAIEIDGGLCQVTKEAVNPSENIKVIQTDILKFSFPKHINYKIYGNIPYNISTDIVKRITFESQAKYSYLIVEKGFAKRLQNLQRALGLLLMVEMDIKMLKKVPPLYFHPKPSVDSVLIVLERHQPLISKKDYKKYRSFVYKWVNREYRVLFTKNQFRQALKHANVTNINKLSKEQFLSIFNSYKLFH\n" +
+                ">ERMA_AERER\n" +
+                "MAGPQDRPRGRGPSSGRPQRPVGGRSQRDRDRRVLGQNFLRDPATIRRIADAADVDPDGLVVEAGPGEGLLTRELARRAGRVRTYELDQRLARRLSTDLAQETSIEVVHADFLTAPHPEEPFQFVGAIPYGITSAIVDWCLTAPTLTSATLVTQQEFARKRTGDYGRWTALTVTTWPTFEWQYVAKVDRTLFTPVPRVHSAIMRLRRRPQPLLRDAAARSRFADMVEIGFVGKGGSLYRSLTREWPRSKVDSAFARADVHHDEIVAFVHPDQWITLFQLLDGSRGGAARGPGDQRGRRGRPGGGPRPDGRAGGGPRRDAGGRRTGDGRGGRPRPPRGGQA\n" +
+                ">dldHA2X_1_AL939117_partial\n" +
+                "MTFSSTSSAPPPSPLLPATRITVYGCGRDEAALFRRTAPRFGVEATLTEAAVSEENAEMAAGNQCISIDHKTPVTPATLRALHRAGVTYISTRSIGYNHIDVTYAAGVGISVENVTYSPAGVADYTLMLMLMAVRNAKSTVRRAELHDYRLNEIRGKELRDLTVGVIGTGRIGAAVVDRLRGFGSRVLAYGKRPTIAADYVSLDELLRSSDIVSLHVPLTPDTHHLLDQSRIRRMKSGAFVINTGRGPLIDTEALVPALESGRLSGAALDVIEGEEGIFYADCRNRTIESTWLPRLQKMPNVLISPHTAYYTDHALMDTVENSIINCLNFGSRKQHGVGQVGQVEGRHRIRGLFRRTRRFRQVRPGGRTQPRHREVPAVLRGDHEGRRLETLRRARPGLGERRLPS\n" +
+                ">dld_BL_ORD_ID_759\n" +
+                "MSYRDLGLIDSEVIAERRVRALDDSSPSAVPTTGVRVFGCGHDEAVLFREMGTRLGITPSITEEAISETNAELARGNRCISVSHKTQIDNSTLLALSRVGVEYISTRSVGYNHIDVEFAASIGISVGNVDYSPDSVGDYTLMLMLMTVRHAKSIVRRADTHDYRLNDTRGRELRDLTVGVIGTGRIGTAVIDRLQGFGCRVLAHDSGPHASADYVPLDELLRQSDIVTLHTPLTADTHHLLDRQRIDQMKHGAYIVNTGRGPLLDTEALLSALESGRLGGAALDVVEGEEGIFYADCRNRLIENKALVRLQRLPNVLISPHSAYYTDHALNDTVENSLVNCLNFESGRTA";
+
+            const example_dna = ">16S_fragment_A\n" +
+                "AGAGTTTGATCCTGGCTCAGGACGAACGCTGGCGGCGTGCCTAATACATGCAAGTCGAGCGGACAGATGGGAGCTTGCTCCCTGATGTTAGCGGCGGACGGGTGAGTAACACGTGGGTAACCTGCCTGTAAGACTGGGATAACTCCGGG\n" +
+                ">16S_fragment_B\n" +
+                "AGAGTTTGATCCTGGCTCAGGATGAACGCTGGCGGCGTGCCTAATACATGCAAGTCGAACGGACAGAAGGGAGCTTGCTCCCTTAGGTCAGCGGCGGACGGGTGAGTAACACGTGGGCAACCTGCCTGTAAGACTGGGATAACTTCGGG\n" +
+                ">16S_fragment_C\n" +
+                "AGAGTTTGATCATGGCTCAGATTGAACGCTGGCGGCAGGCCTAACACATGCAAGTCGAACGGTAACAGGAAGAAGCTTGCTTCTTTGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGGAAACTGCCTGATGGAGGGGGATAACTAC\n" +
+                ">unrelated_gene\n" +
+                "ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGACGCGTACAGGAAACACAGAAAAAAGCCCGCACCTGACAGTGCGGGCTTTTTTTTTCGACCAAAGGTAACGAGGTAACAACCAT";
+
+            $('#load-example-proteins').on('click', function(e) {
+                e.preventDefault();
+                $('#sequences').val(example_erm);
+                $('#sequence-type').val('protein').trigger('change');
+            });
+            $('#load-example-dna').on('click', function(e) {
+                e.preventDefault();
+                $('#sequences').val(example_dna);
+                $('#sequence-type').val('dna').trigger('change');
+            });
+            $('#toggle-advanced').on('click', function(e) {
+                e.preventDefault();
+                $('#advanced-params').toggle();
+                $(this).text(function(_, txt) {
+                    return txt === 'Show advanced parameters' ? 'Hide advanced parameters' : 'Show advanced parameters';
+                });
+            });
+            $('#sequence-type').on('change', function() {
+                if (this.value === 'dna') {
+                    $('#weight-option').val('uniform').trigger('change');
+                }
+            });
+            $('#weight-option').on('change', function() {
+                if (this.value === 'uniform') {
+                    $('#uniform-params').addClass('show');
+                } else {
+                    $('#uniform-params').removeClass('show');
+                }
+            }).trigger('change');
+        });
+    </script>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2" id="sidebar-container"></div>
+            <div class="col">
+                <h1>Web Bio Tools</h1>
+                <h2>All-by-all Sequence Alignment</h2>
+                <p>
+                    Paste two or more sequences in FASTA format below. Every sequence is
+                    aligned against every other one and the results are shown as a matrix.
+                    Click any cell to see the underlying pairwise alignment.
+                </p>
+                <textarea id="sequences" class="form-control"
+                          placeholder="Enter two or more sequences in FASTA format"
+                          rows=14></textarea>
+                <p class="mt-2">
+                    Load examples:
+                    <a href="#" id="load-example-proteins">six proteins (two families)</a> |
+                    <a href="#" id="load-example-dna">four DNA sequences</a>
+                </p>
+                <p>
+                    <label>Sequence type: <select id="sequence-type">
+                        <option value="protein" selected>Protein</option>
+                        <option value="dna">DNA</option>
+                    </select></label>
+                </p>
+                <p><a href="#" id="toggle-advanced">Show advanced parameters</a></p>
+                <div id="advanced-params" style="display:none;">
+                    <label>Scoring matrix:
+                        <select id="weight-option">
+                            <option value="uniform">Uniform</option>
+                            <option value="blosum62" selected>BLOSUM62</option>
+                        </select>
+                    </label><br>
+                    <div id="uniform-params">
+                        <label>Match score: <input type="number" id="match-score" value="2"></label><br>
+                        <label>Mismatch penalty: <input type="number" id="mismatch-penalty" value="-1"></label><br>
+                    </div>
+                    <label>Gap open penalty: <input type="number" id="gap-open" value="-10"></label><br>
+                    <label>Gap extend penalty: <input type="number" id="gap-extend" value="-0.5"></label>
+                </div>
+                <div id="input-warning" class="alert alert-warning mt-2" style="display:none"></div>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-primary run-button" data-algorithm="sw">Local Alignments</button>
+                    <button class="btn btn-primary run-button" data-algorithm="nw">Global Alignments</button>
+                </div>
+                <div id="progress-container" class="mt-3" style="display:none;">
+                    <p class="mb-1 small text-muted">Aligning&hellip;</p>
+                    <div class="progress">
+                        <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="results" style="display:none;">
+                    <h3 class="mt-4">Matrix (<span id="matrix-mode"></span>)</h3>
+                    <p><span id="matrix-count"></span> sequences, all pairs aligned.</p>
+                    <p>
+                        <label>Show: <select id="metric-option">
+                            <option value="identity" selected>Identity (%)</option>
+                            <option value="normalized">Identity over shorter sequence (%)</option>
+                            <option value="score">Alignment score</option>
+                            <option value="length">Aligned length</option>
+                        </select></label>
+                        <button id="download-matrix" class="btn btn-secondary btn-sm ml-3">Download Matrix (TSV)</button>
+                    </p>
+                    <div class="d-flex align-items-center mb-3" style="gap: 0.5rem;">
+                        <small class="text-muted"><span id="legend-label"></span>:</small>
+                        <small class="text-muted" id="legend-low"></small>
+                        <span class="matrix-legend-gradient" id="legend-gradient"></span>
+                        <small class="text-muted" id="legend-high"></small>
+                    </div>
+                    <div class="matrix-scroll">
+                        <div id="matrix-container"></div>
+                    </div>
+                    <p class="small text-muted mt-2">
+                        The diagonal (hatched) is each sequence against itself and is left out
+                        of the colour scale. The matrix is symmetric: each pair is aligned once.
+                    </p>
+
+                    <div id="pair-alignment" style="display:none;">
+                        <h3 class="mt-4">Pairwise alignment</h3>
+                        <p class="mb-1"><strong id="pair-title"></strong></p>
+                        <p id="pair-stats"></p>
+                        <pre id="pair-result"></pre>
+                    </div>
+                </div>
+
+                <p class="mt-4">
+                    This site provides simple bioinformatics tools compiled to WebAssembly
+                    with Rust. All alignments run in your browser; no sequence is uploaded
+                    anywhere.
+                </p>
+                <p>
+                    Source code available on <a href="https://github.com/luispedro/web-bio-tools">GitHub</a>.<br>
+                    Author: <a href="https://luispedro.org">Luis Pedro Coelho</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

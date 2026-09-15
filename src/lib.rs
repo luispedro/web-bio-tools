@@ -3,6 +3,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
 mod alignment;
+mod allbyall;
 mod fna2faa;
 mod hmm;
 #[cfg(all(feature = "python", not(target_arch = "wasm32")))]
@@ -10,6 +11,7 @@ mod python;
 mod translation;
 
 pub use alignment::AlignmentResult;
+pub use allbyall::{PairSummary, ScoringParams};
 pub use translation::{translate_all_frames, translate_frame};
 
 #[wasm_bindgen]
@@ -77,6 +79,37 @@ pub fn needleman_wunsch_blosum62(
 ) -> JsValue {
     let result = alignment::needleman_wunsch_blosum62_internal(seq1, seq2, gap_open, gap_extend);
     to_value(&result).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn all_by_all_row(
+    seqs: Vec<String>,
+    row: usize,
+    global: bool,
+    blosum62: bool,
+    match_score: f64,
+    mismatch_penalty: f64,
+    gap_open: f64,
+    gap_extend: f64,
+) -> Result<JsValue, JsValue> {
+    if row >= seqs.len() {
+        return Err(JsValue::from_str(&format!(
+            "Row {} is out of range for {} sequences",
+            row,
+            seqs.len()
+        )));
+    }
+    let params = allbyall::ScoringParams {
+        global,
+        blosum62,
+        match_score,
+        mismatch_penalty,
+        gap_open,
+        gap_extend,
+    };
+    let summaries = allbyall::all_by_all_row(&seqs, row, &params);
+    to_value(&summaries)
+        .map_err(|err| JsValue::from_str(&format!("Failed to serialize row: {}", err)))
 }
 
 #[wasm_bindgen]

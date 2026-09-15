@@ -4,7 +4,7 @@ This project contains Rust code compiled to WebAssembly and a small Python packa
 
 ## Project Overview
 
-Web Bio Tools is a Rust bioinformatics toolkit compiled to WebAssembly for browser execution, with optional Python bindings (PyO3). It provides three tools: sequence alignment (Smith-Waterman/Needleman-Wunsch), DNA-to-protein translation (6-frame), and HMM profile viewer (HMMER3 format with forward-backward algorithm). Runs entirely client-side — no backend server.
+Web Bio Tools is a Rust bioinformatics toolkit compiled to WebAssembly for browser execution, with optional Python bindings (PyO3). It provides four tools: sequence alignment (Smith-Waterman/Needleman-Wunsch), all-by-all alignment of a set of sequences shown as a matrix, DNA-to-protein translation (6-frame), and HMM profile viewer (HMMER3 format with forward-backward algorithm). Runs entirely client-side — no backend server.
 
 Live: https://web-bio-tools.big-data-biology.org/
 
@@ -41,12 +41,13 @@ Run `cargo fmt` on all Rust files before committing.
 All core algorithms are in `src/`:
 - **`lib.rs`** — WASM entry points (`#[wasm_bindgen]` exports), ties modules together
 - **`alignment.rs`** — Smith-Waterman (local) and Needleman-Wunsch (global) alignment with BLOSUM62 or custom scoring; affine gap penalties
+- **`allbyall.rs`** — all-by-all driver over the pairwise aligners; computes one upper-triangle row per call so the browser can show progress
 - **`hmm.rs`** — HMMER3 HMM parsing and forward-backward probability computation
 - **`fna2faa.rs`** — Codon table and DNA→protein translation (handles IUPAC ambiguous nucleotides via bitmask)
 - **`translation.rs`** — Frame translation interface (all 6 reading frames)
 - **`python.rs`** — PyO3 bindings (behind `python` feature flag)
 
-Frontend is plain HTML/JS (no framework): `index.html` (alignment), `fna2faa.html` (translator), `hmm.html` (HMM viewer). They load WASM from `pkg/` and use Bootstrap 4 + jQuery.
+Frontend is plain HTML/JS (no framework): `index.html` (alignment), `matrix.html` (all-by-all matrix), `fna2faa.html` (translator), `hmm.html` (HMM viewer). They load WASM from `pkg/` and use Bootstrap 4 + jQuery.
 
 ## Key Dependencies
 
