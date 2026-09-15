@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Changelog - Web Bio Tools</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/style.css">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FJD44VNJHB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-FJD44VNJHB');
+    </script>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2" id="sidebar-container"></div>
+        <div class="col-lg-8 col-md-9 mt-4">
+            <h1>Changelog</h1>
+            <p>User-visible changes to Web Bio Tools, most recent first.</p>
+
+            <h5>2026-09-15</h5>
+            <ul>
+                <li>Added the All-by-all alignment matrix page, for comparing many sequences at once.</li>
+                <li>Added FASTA file upload to the all-by-all page.</li>
+                <li>The all-by-all matrix now shows a different metric above and below the diagonal.</li>
+                <li>Added a Markdown report download for all-by-all results.</li>
+            </ul>
+
+            <h5>2026-06-12</h5>
+            <ul>
+                <li>Added a "Flip query" toggle to the delta file dot plot.</li>
+            </ul>
+
+            <h5>2026-04-07</h5>
+            <ul>
+                <li>The DNA to protein translator now supports URL-controlled translation presets, for linking directly to a specific translation.</li>
+            </ul>
+
+            <h5>2026-03-16 &ndash; 2026-03-17</h5>
+            <ul>
+                <li>Added the Delta file viewer, for displaying nucmer/promer dot plots.</li>
+                <li>Added a circular rotation control to the dot plot.</li>
+                <li>Added a "Download SVG" button to the delta file viewer.</li>
+                <li>Added an adjustable plot size slider to the delta file viewer.</li>
+                <li>Alignment lines in the dot plot now show tooltips with original genomic coordinates.</li>
+                <li>Added more information about the project to the front page.</li>
+            </ul>
+
+            <h5>2026-01-27</h5>
+            <ul>
+                <li>Improved FASTA headers in downloaded output.</li>
+            </ul>
+
+            <h5>2025-11-11 &ndash; 2025-11-28</h5>
+            <ul>
+                <li>Added the HMM viewer page, for exploring HMMER3 profiles, including a sequence logo visualization with a toggleable color legend.</li>
+                <li>Added the DNA to protein translator (fna2faa) page, with six-frame translation, FASTA-formatted output, an example loader, and a FASTA download option.</li>
+                <li>The sidebar navigation is now shared consistently across all pages.</li>
+            </ul>
+
+            <h5>2025-07-01 &ndash; 2025-07-16</h5>
+            <ul>
+                <li>Initial release: browser-based pairwise sequence alignment (Smith-Waterman and Needleman-Wunsch), running entirely client-side via WebAssembly.</li>
+                <li>Added BLOSUM62 and custom scoring matrices, with adjustable affine gap penalties.</li>
+                <li>Alignment results can be saved to your browser's local storage, shared via URL, and downloaded.</li>
+                <li>Added the FAQ page.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function() {
+        $('#sidebar-container').load('sidebar.html');
+    });
+</script>
+</body>
+</html>

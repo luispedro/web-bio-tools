@@ -59,6 +59,10 @@ Frontend is plain HTML/JS (no framework): `index.html` (alignment), `matrix.html
 
 GitHub Actions (`.github/workflows/test.yml`): runs `cargo test --verbose` on push to main and all PRs. Python tests are not in CI.
 
+## Changelog
+
+`changelog.html` is a user-visible page (linked from the sidebar) listing user-facing changes, most recent first. Whenever a change affects what a user of the live site sees or can do (new tool/page, new feature, UI behavior change, notable bug fix), add an entry to `changelog.html`. Purely internal changes (refactors, tests, CI, build tooling, formatting) do not need an entry. Remember to add any new top-level HTML page to the copy list in `build.sh` as well.
+
 ## PR Requirements
 
 Summarize changes and include `cargo test` output (and `pytest` if applicable) in PR description.
