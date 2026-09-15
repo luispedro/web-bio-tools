@@ -172,7 +172,10 @@
                     label: 'Aligned length',
                     get: cell => cell.aligned_length,
                     format: v => v.toFixed(0),
-                    unit: ' aa'
+                    unit: ' aa',
+                    // 'aa' is wrong for DNA, and a report is read away from the
+                    // page that would make the sequence type obvious.
+                    reportUnit: 'columns'
                 }
             };
 
@@ -393,6 +396,18 @@
                 ).forEach(el => el.classList.add('is-selected'));
             };
 
+            function downloadText(filename, text, mime) {
+                const blob = new Blob([text], { type: mime });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+
             window.downloadMatrix = function() {
                 const state = window.lastMatrix;
                 if (!state) return;
@@ -419,15 +434,196 @@
                 }
                 const metricKey = (same ? [upper] : [upper, lower])
                     .filter(Boolean).map(t => t.key).join('-');
-                const blob = new Blob([text], { type: 'text/tab-separated-values' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `all-by-all-${metricKey}.tsv`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
+                downloadText(`all-by-all-${metricKey}.tsv`, text,
+                             'text/tab-separated-values');
+            };
+
+            // Markdown report ------------------------------------------------
+            // The report is meant to be self-contained: the matrix as it is
+            // currently shown, the settings that produced it, every pair in long
+            // form and (for small inputs) the sequences themselves.
+
+            function mdCell(text) {
+                return String(text).replace(/\|/g, '\\|');
+            }
+
+            function mdTable(header, rows) {
+                const lines = ['| ' + header.map(mdCell).join(' | ') + ' |',
+                               '|' + header.map(() => ' --- ').join('|') + '|'];
+                for (const row of rows) {
+                    lines.push('| ' + row.map(mdCell).join(' | ') + ' |');
+                }
+                return lines.join('\n') + '\n';
+            }
+
+            function unitSuffix(metric) {
+                const unit = (metric.reportUnit !== undefined
+                    ? metric.reportUnit : metric.unit).trim();
+                return unit ? ` (${unit})` : '';
+            }
+
+            const METRIC_NOTES =
+                '- **Identity**: identical residues as a fraction of the aligned columns.\n'
+                + '- **Identity over shorter sequence**: identical residues as a fraction of\n'
+                + '  the shorter of the two input sequences, so that a short but well-matched\n'
+                + '  local alignment does not read as a close relationship.\n'
+                + '- **Alignment score**: score of the optimal alignment under the settings above.\n'
+                + '- **Aligned length**: number of alignment columns, gaps included.\n';
+
+            function reportSettings(state) {
+                const p = state.params;
+                const n = state.names.length;
+                return mdTable(['Setting', 'Value'], [
+                    ['Algorithm', state.algorithm === 'nw'
+                        ? 'Needleman-Wunsch (global)' : 'Smith-Waterman (local)'],
+                    ['Sequence type', state.seqType === 'dna' ? 'DNA' : 'Protein'],
+                    ['Scoring', p.blosum62
+                        ? 'BLOSUM62'
+                        : `uniform (match ${p.matchScore}, mismatch ${p.mismatchPenalty})`],
+                    ['Gap open penalty', p.gapOpen],
+                    ['Gap extend penalty', p.gapExtend],
+                    ['Sequences', n],
+                    ['Pairs aligned', n * (n - 1) / 2]
+                ]);
+            }
+
+            function reportMatrixDescription({ same, upper, lower }) {
+                const tail = ' The diagonal is each sequence against itself.\n';
+                if (same) {
+                    return `Values are **${upper.metric.label}**${unitSuffix(upper.metric)}. `
+                        + 'The matrix is symmetric.' + tail;
+                }
+                const above = upper
+                    ? `**${upper.metric.label}**${unitSuffix(upper.metric)}` : 'left blank';
+                const below = lower
+                    ? `**${lower.metric.label}**${unitSuffix(lower.metric)}` : 'left blank';
+                return `Above the diagonal: ${above}. Below the diagonal: ${below}. `
+                    + 'Both halves summarise the same alignments.' + tail;
+            }
+
+            // Columns are numbered, as in the page, because full names would make
+            // the table unreadably wide.
+            function reportMatrix(state, { lengths, upper, lower }) {
+                const diagonal = upper || lower;
+                const { names, matrix } = state;
+                const n = names.length;
+                const rows = [];
+                for (let i = 0; i < n; i++) {
+                    const row = [`${i + 1}. ${names[i]}`];
+                    for (let j = 0; j < n; j++) {
+                        const spec = i === j ? diagonal : (j > i ? upper : lower);
+                        row.push(spec
+                            ? spec.metric.format(
+                                spec.metric.get(matrix[i][j], lengths[i], lengths[j]))
+                            : '');
+                    }
+                    rows.push(row);
+                }
+                return mdTable([''].concat(names.map((_, j) => j + 1)), rows);
+            }
+
+            function distinctPairs(n) {
+                const pairs = [];
+                for (let i = 0; i < n; i++) {
+                    for (let j = i + 1; j < n; j++) {
+                        pairs.push([i, j]);
+                    }
+                }
+                return pairs;
+            }
+
+            // Every metric for every pair, whatever the matrix is currently
+            // showing, sorted so that the closest pairs come first.
+            function reportPairs(state, lengths) {
+                const { names, matrix } = state;
+                const keys = Object.keys(METRICS);
+                const ranking = ([i, j]) =>
+                    METRICS.normalized.get(matrix[i][j], lengths[i], lengths[j]);
+                const pairs = distinctPairs(names.length)
+                    .sort((a, b) => ranking(b) - ranking(a));
+                const header = ['Sequence A', 'Sequence B'].concat(
+                    keys.map(k => METRICS[k].label + unitSuffix(METRICS[k])));
+                const rows = pairs.map(([i, j]) => [names[i], names[j]].concat(
+                    keys.map(k =>
+                        METRICS[k].format(METRICS[k].get(matrix[i][j], lengths[i], lengths[j])))));
+                return mdTable(header, rows);
+            }
+
+            function reportStats(state, lengths) {
+                const { matrix } = state;
+                const pairs = distinctPairs(state.names.length);
+                const rows = Object.values(METRICS).map(metric => {
+                    const values = pairs.map(([i, j]) =>
+                        metric.get(matrix[i][j], lengths[i], lengths[j]));
+                    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                    return [metric.label + unitSuffix(metric),
+                            metric.format(Math.min(...values)),
+                            metric.format(mean),
+                            metric.format(Math.max(...values))];
+                });
+                return mdTable(['Metric', 'Minimum', 'Mean', 'Maximum'], rows);
+            }
+
+            // Inlining the input makes the report reproducible, but a large FASTA
+            // file would drown everything else, so past this size it is left out.
+            const MAX_REPORT_RESIDUES = 50000;
+
+            function reportInputSequences(state) {
+                const total = state.seqs.reduce((acc, seq) => acc + seq.length, 0);
+                if (total > MAX_REPORT_RESIDUES) {
+                    return `Omitted: the input is ${total} residues long, too much to `
+                        + 'inline in a report.\n';
+                }
+                let md = '```\n';
+                state.names.forEach((name, i) => {
+                    md += `>${name}\n`;
+                    const seq = state.seqs[i];
+                    for (let k = 0; k < seq.length; k += 60) {
+                        md += seq.slice(k, k + 60) + '\n';
+                    }
+                });
+                return md + '```\n';
+            }
+
+            function buildReport() {
+                const state = window.lastMatrix;
+                const triangles = currentTriangles();
+                const { upper, lower, lengths } = triangles;
+                const n = state.names.length;
+                const when = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+                let md = '# All-by-all sequence alignment report\n\n'
+                    + `Generated on ${when} UTC by `
+                    + '[Web Bio Tools](https://web-bio-tools.big-data-biology.org/), '
+                    + 'which aligns every pair in the browser.\n\n';
+
+                md += '## Settings\n\n' + reportSettings(state) + '\n';
+
+                md += '## Sequences\n\n' + mdTable(['#', 'Name', 'Length'],
+                    state.names.map((name, i) => [i + 1, name, lengths[i]])) + '\n';
+
+                md += '## Matrix\n\n';
+                md += (upper || lower)
+                    ? reportMatrixDescription(triangles) + '\n' + reportMatrix(state, triangles) + '\n'
+                    : 'No metric is selected on either side of the diagonal, so no matrix is '
+                      + 'shown here. The table below lists every metric.\n\n';
+
+                md += '## All pairs\n\n'
+                    + 'Ordered by identity over the shorter sequence, highest first.\n\n'
+                    + reportPairs(state, lengths) + '\n';
+
+                md += '## Distribution\n\n'
+                    + `Over the ${n * (n - 1) / 2} distinct pairs, excluding self-comparisons:\n\n`
+                    + reportStats(state, lengths) + '\n';
+
+                md += '## Metrics\n\n' + METRIC_NOTES + '\n';
+                md += '## Input sequences\n\n' + reportInputSequences(state);
+                return md;
+            }
+
+            window.downloadReport = function() {
+                if (!window.lastMatrix) return;
+                downloadText('all-by-all-report.md', buildReport(), 'text/markdown');
             };
 
             window.lastMatrix = null;
@@ -474,7 +670,8 @@
                         seqs: records.map(r => r.sequence),
                         matrix,
                         params: p,
-                        algorithm
+                        algorithm,
+                        seqType
                     };
                     document.getElementById('matrix-mode').textContent =
                         algorithm === 'nw' ? 'global' : 'local';
@@ -594,6 +791,10 @@
                 e.preventDefault();
                 window.downloadMatrix();
             });
+            $('#download-report').on('click', function(e) {
+                e.preventDefault();
+                window.downloadReport();
+            });
 
             const params = new URLSearchParams(window.location.search);
             if (params.has('seqs')) {
@@ -710,7 +911,8 @@
                     Paste two or more sequences in FASTA format below, or upload a FASTA
                     file (you can also drop one onto the text box). Every sequence is
                     aligned against every other one and the results are shown as a matrix.
-                    Click any cell to see the underlying pairwise alignment.
+                    Click any cell to see the underlying pairwise alignment. The results
+                    can be downloaded as a table (TSV) or as a markdown report.
                 </p>
                 <textarea id="sequences" class="form-control"
                           placeholder="Enter two or more sequences in FASTA format, or drop a FASTA file here"
@@ -768,7 +970,11 @@
                         <label class="mr-3">Above diagonal: <select id="upper-metric"></select></label>
                         <label class="mr-2">Below diagonal: <select id="lower-metric"></select></label>
                         <a href="#" id="swap-triangles" class="small">swap</a>
-                        <button id="download-matrix" class="btn btn-secondary btn-sm ml-3">Download Matrix (TSV)</button>
+                        <span class="text-nowrap ml-3">
+                            <button id="download-matrix" class="btn btn-secondary btn-sm">Download Matrix (TSV)</button>
+                            <button id="download-report" class="btn btn-secondary btn-sm ml-2"
+                                    title="Matrix, settings, every pair and the input sequences as one markdown file">Download Report (Markdown)</button>
+                        </span>
                     </p>
                     <div id="legend-container" class="mb-3"></div>
                     <div class="matrix-scroll">
