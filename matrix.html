@@ -176,10 +176,16 @@
                 }
             };
 
-            function colorFor(fraction) {
+            // Each triangle has its own hue, so that two different metrics can be
+            // told apart at a glance. A matrix showing one metric everywhere keeps
+            // the original blue on both sides.
+            const HUE_UPPER = 205;
+            const HUE_LOWER = 25;
+
+            function colorFor(fraction, hue) {
                 const f = Math.max(0, Math.min(1, fraction));
                 const lightness = 96 - 58 * f;
-                return `hsl(205, 62%, ${lightness}%)`;
+                return `hsl(${hue}, 62%, ${lightness}%)`;
             }
 
             function escapeHtml(text) {
@@ -205,14 +211,87 @@
                 return [min, max];
             }
 
+            // One half of the matrix: the metric it shows, the hue it is drawn in
+            // and the value range that hue is stretched over. A null spec means the
+            // triangle is hidden.
+            function triangleSpec(key, hue, matrix, lengths) {
+                const metric = METRICS[key];
+                if (!metric) return null;
+                const [lo, hi] = metric.fixedRange || offDiagonalRange(matrix, lengths, metric);
+                return { key, metric, hue, lo, hi };
+            }
+
+            function currentTriangles() {
+                const state = window.lastMatrix;
+                const upperKey = document.getElementById('upper-metric').value;
+                const lowerKey = document.getElementById('lower-metric').value;
+                const lengths = state.seqs.map(seq => seq.length);
+                const same = upperKey === lowerKey;
+                return {
+                    same,
+                    lengths,
+                    upper: triangleSpec(upperKey, HUE_UPPER, state.matrix, lengths),
+                    // With a single metric on both sides there is nothing to tell
+                    // apart, so keep the familiar one-colour matrix.
+                    lower: triangleSpec(lowerKey, same ? HUE_UPPER : HUE_LOWER,
+                                        state.matrix, lengths)
+                };
+            }
+
+            function legendRow(prefix, spec) {
+                const gradient = `linear-gradient(90deg, ${colorFor(0, spec.hue)}, `
+                    + `${colorFor(0.5, spec.hue)}, ${colorFor(1, spec.hue)})`;
+                return '<div class="d-flex align-items-center mb-1" style="gap: 0.5rem;">'
+                    + `<small class="text-muted">${prefix}${escapeHtml(spec.metric.label)}:</small>`
+                    + `<small class="text-muted">${spec.metric.format(spec.lo)}${spec.metric.unit}</small>`
+                    + `<span class="matrix-legend-gradient" style="background: ${gradient}"></span>`
+                    + `<small class="text-muted">${spec.metric.format(spec.hi)}${spec.metric.unit}</small>`
+                    + '</div>';
+            }
+
+            function renderLegend(same, upper, lower) {
+                const el = document.getElementById('legend-container');
+                if (!upper && !lower) {
+                    el.innerHTML = '<small class="text-muted">Nothing to show: pick a metric '
+                        + 'for at least one side of the diagonal.</small>';
+                } else if (same) {
+                    el.innerHTML = legendRow('', upper);
+                } else {
+                    el.innerHTML = (upper ? legendRow('Above diagonal &mdash; ', upper) : '')
+                        + (lower ? legendRow('Below diagonal &mdash; ', lower) : '');
+                }
+            }
+
+            function matrixNote(same, upper, lower) {
+                if (!upper && !lower) {
+                    return 'No metric is selected, so the matrix is empty.';
+                }
+                const base = 'The diagonal (hatched) is each sequence against itself and is left '
+                    + 'out of the colour scale. Each pair is aligned once.';
+                if (same) {
+                    return base + ' The matrix is symmetric.';
+                }
+                const above = upper
+                    ? `Above the diagonal: ${escapeHtml(upper.metric.label)}.`
+                    : 'Above the diagonal is left blank.';
+                const below = lower
+                    ? `Below the diagonal: ${escapeHtml(lower.metric.label)}.`
+                    : 'Below the diagonal is left blank.';
+                const shared = (upper && lower)
+                    ? ' Both halves summarise the same alignments, each on its own colour scale.'
+                    : '';
+                return `${base} ${above} ${below}${shared}`;
+            }
+
             function renderMatrix() {
                 const state = window.lastMatrix;
                 if (!state) return;
-                const metric = METRICS[document.getElementById('metric-option').value];
+                const { same, lengths, upper, lower } = currentTriangles();
                 const { names, matrix } = state;
-                const lengths = state.seqs.map(seq => seq.length);
                 const n = names.length;
-                const [lo, hi] = metric.fixedRange || offDiagonalRange(matrix, lengths, metric);
+                // A self-comparison can only carry one number, so the diagonal follows
+                // the upper triangle, or the lower one when the upper is hidden.
+                const diagonal = upper || lower;
 
                 let html = '<table class="matrix-table"><thead><tr><th></th>';
                 for (let j = 0; j < n; j++) {
@@ -222,18 +301,25 @@
                 for (let i = 0; i < n; i++) {
                     html += `<tr><th title="${escapeHtml(names[i])}">${i + 1}. ${escapeHtml(names[i])}</th>`;
                     for (let j = 0; j < n; j++) {
+                        const spec = i === j ? diagonal : (j > i ? upper : lower);
+                        if (!spec) {
+                            html += '<td class="matrix-cell is-empty"></td>';
+                            continue;
+                        }
+                        const metric = spec.metric;
                         const value = metric.get(matrix[i][j], lengths[i], lengths[j]);
-                        const fraction = (value - lo) / (hi - lo);
+                        const text = metric.format(value);
                         const title = `${escapeHtml(names[i])} vs ${escapeHtml(names[j])}: `
-                            + `${metric.format(value)}${metric.unit}`;
+                            + `${escapeHtml(metric.label)} ${text}${metric.unit}`;
                         if (i === j) {
                             html += `<td class="matrix-cell is-diagonal" title="${title}">`
-                                + `${metric.format(value)}</td>`;
+                                + `${text}</td>`;
                         } else {
-                            const style = `background-color: ${colorFor(fraction)};`
+                            const fraction = (value - spec.lo) / (spec.hi - spec.lo);
+                            const style = `background-color: ${colorFor(fraction, spec.hue)};`
                                 + (fraction > 0.62 ? ' color: #fff;' : '');
                             html += `<td class="matrix-cell" style="${style}" title="${title}" `
-                                + `data-i="${i}" data-j="${j}">${metric.format(value)}</td>`;
+                                + `data-i="${i}" data-j="${j}">${text}</td>`;
                         }
                     }
                     html += '</tr>';
@@ -241,11 +327,8 @@
                 html += '</tbody></table>';
 
                 document.getElementById('matrix-container').innerHTML = html;
-                document.getElementById('legend-label').textContent = metric.label;
-                document.getElementById('legend-low').textContent = metric.format(lo) + metric.unit;
-                document.getElementById('legend-high').textContent = metric.format(hi) + metric.unit;
-                document.getElementById('legend-gradient').style.background =
-                    `linear-gradient(90deg, ${colorFor(0)}, ${colorFor(0.5)}, ${colorFor(1)})`;
+                renderLegend(same, upper, lower);
+                document.getElementById('matrix-note').innerHTML = matrixNote(same, upper, lower);
                 document.getElementById('results').style.display = 'block';
             }
 
@@ -313,16 +396,29 @@
             window.downloadMatrix = function() {
                 const state = window.lastMatrix;
                 if (!state) return;
-                const metricKey = document.getElementById('metric-option').value;
-                const metric = METRICS[metricKey];
+                const { same, lengths, upper, lower } = currentTriangles();
+                if (!upper && !lower) return;
+                const diagonal = upper || lower;
                 const { names, matrix } = state;
-                const lengths = state.seqs.map(seq => seq.length);
-                let text = 'name\t' + names.join('\t') + '\n';
+                let text = '';
+                if (!same) {
+                    // The two halves hold different quantities, which no single column
+                    // header can express, so spell it out in a comment.
+                    text += `# above diagonal: ${upper ? upper.metric.label : '(not shown)'}\n`
+                        + `# below diagonal: ${lower ? lower.metric.label : '(not shown)'}\n`;
+                }
+                text += 'name\t' + names.join('\t') + '\n';
                 for (let i = 0; i < names.length; i++) {
-                    const row = matrix[i].map((cell, j) =>
-                        metric.format(metric.get(cell, lengths[i], lengths[j])));
+                    const row = names.map((_, j) => {
+                        const spec = i === j ? diagonal : (j > i ? upper : lower);
+                        if (!spec) return '';
+                        return spec.metric.format(
+                            spec.metric.get(matrix[i][j], lengths[i], lengths[j]));
+                    });
                     text += names[i] + '\t' + row.join('\t') + '\n';
                 }
+                const metricKey = (same ? [upper] : [upper, lower])
+                    .filter(Boolean).map(t => t.key).join('-');
                 const blob = new Blob([text], { type: 'text/tab-separated-values' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -462,12 +558,34 @@
                 loadFastaFile(ev.dataTransfer.files[0]);
             });
 
+            // Both metric menus offer the same choices, plus the option of leaving
+            // that half of the matrix out entirely.
+            function fillMetricSelect(select, selected) {
+                select.innerHTML = Object.entries(METRICS).map(([key, metric]) =>
+                    `<option value="${key}">${metric.label}`
+                    + `${metric.unit === '%' ? ' (%)' : ''}</option>`).join('')
+                    + '<option value="none">Nothing (hide this half)</option>';
+                select.value = selected;
+            }
+
+            const upperSelect = document.getElementById('upper-metric');
+            const lowerSelect = document.getElementById('lower-metric');
+            fillMetricSelect(upperSelect, 'identity');
+            fillMetricSelect(lowerSelect, 'identity');
+
             $('#matrix-container').on('click', '.matrix-cell[data-i]', function() {
                 window.showPair(parseInt(this.dataset.i, 10), parseInt(this.dataset.j, 10));
             });
-            $('#metric-option').on('change', function() {
+            $('#upper-metric, #lower-metric').on('change', function() {
                 renderMatrix();
                 document.getElementById('pair-alignment').style.display = 'none';
+            });
+            $('#swap-triangles').on('click', function(e) {
+                e.preventDefault();
+                const upperKey = upperSelect.value;
+                upperSelect.value = lowerSelect.value;
+                lowerSelect.value = upperKey;
+                $(upperSelect).trigger('change');
             });
             $('.run-button').on('click', function() {
                 window.runAllByAll(this.dataset.algorithm);
@@ -501,8 +619,18 @@
                 document.getElementById('sequence-type').value = params.get('seq_type');
                 $('#sequence-type').trigger('change');
             }
-            if (params.has('metric') && METRICS[params.get('metric')]) {
-                document.getElementById('metric-option').value = params.get('metric');
+            // 'metric' sets both halves at once (and keeps older links working);
+            // 'upper' and 'lower' override one half each.
+            const metricChoice = value => (value === 'none' || METRICS[value]) ? value : null;
+            if (params.has('metric') && metricChoice(params.get('metric'))) {
+                upperSelect.value = params.get('metric');
+                lowerSelect.value = params.get('metric');
+            }
+            if (params.has('upper') && metricChoice(params.get('upper'))) {
+                upperSelect.value = params.get('upper');
+            }
+            if (params.has('lower') && metricChoice(params.get('lower'))) {
+                lowerSelect.value = params.get('lower');
             }
             if (params.has('seqs')) {
                 const mode = params.get('mode');
@@ -636,28 +764,17 @@
                 <div id="results" style="display:none;">
                     <h3 class="mt-4">Matrix (<span id="matrix-mode"></span>)</h3>
                     <p><span id="matrix-count"></span> sequences, all pairs aligned.</p>
-                    <p>
-                        <label>Show: <select id="metric-option">
-                            <option value="identity" selected>Identity (%)</option>
-                            <option value="normalized">Identity over shorter sequence (%)</option>
-                            <option value="score">Alignment score</option>
-                            <option value="length">Aligned length</option>
-                        </select></label>
+                    <p class="mb-1">
+                        <label class="mr-3">Above diagonal: <select id="upper-metric"></select></label>
+                        <label class="mr-2">Below diagonal: <select id="lower-metric"></select></label>
+                        <a href="#" id="swap-triangles" class="small">swap</a>
                         <button id="download-matrix" class="btn btn-secondary btn-sm ml-3">Download Matrix (TSV)</button>
                     </p>
-                    <div class="d-flex align-items-center mb-3" style="gap: 0.5rem;">
-                        <small class="text-muted"><span id="legend-label"></span>:</small>
-                        <small class="text-muted" id="legend-low"></small>
-                        <span class="matrix-legend-gradient" id="legend-gradient"></span>
-                        <small class="text-muted" id="legend-high"></small>
-                    </div>
+                    <div id="legend-container" class="mb-3"></div>
                     <div class="matrix-scroll">
                         <div id="matrix-container"></div>
                     </div>
-                    <p class="small text-muted mt-2">
-                        The diagonal (hatched) is each sequence against itself and is left out
-                        of the colour scale. The matrix is symmetric: each pair is aligned once.
-                    </p>
+                    <p class="small text-muted mt-2" id="matrix-note"></p>
 
                     <div id="pair-alignment" style="display:none;">
                         <h3 class="mt-4">Pairwise alignment</h3>

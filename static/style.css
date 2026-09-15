@@ -366,6 +366,16 @@ nav h6 {
     box-shadow: none;
 }
 
+/* A triangle whose metric is set to "nothing" leaves plain, inert cells. */
+.matrix-cell.is-empty {
+    cursor: default;
+    background-color: transparent;
+}
+
+.matrix-cell.is-empty:hover {
+    box-shadow: none;
+}
+
 .matrix-cell.is-selected {
     box-shadow: inset 0 0 0 2px #d95f02;
 }
