@@ -394,6 +394,74 @@
                 }
             };
 
+            function setFileStatus(message, isError) {
+                const el = document.getElementById('file-status');
+                el.textContent = message;
+                el.classList.toggle('text-danger', Boolean(isError));
+                el.classList.toggle('text-muted', !isError);
+            }
+
+            // The file is read locally, like everything else on this page: nothing
+            // is uploaded anywhere.
+            function loadFastaFile(file) {
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const text = String(reader.result);
+                    document.getElementById('sequences').value = text;
+                    document.getElementById('input-warning').style.display = 'none';
+                    const records = parseFastaRecords(text);
+                    if (records.length === 0) {
+                        setFileStatus(`${file.name}: no sequences found`, true);
+                        return;
+                    }
+                    let status = `${file.name}: ${records.length} `
+                        + `sequence${records.length === 1 ? '' : 's'}`;
+                    // All-by-all is quadratic, so a big file is worth flagging before
+                    // the user starts a run that takes minutes.
+                    if (records.length > 40) {
+                        const pairs = records.length * (records.length - 1) / 2;
+                        status += ` (${pairs} pairs to align, this may take a while)`;
+                    }
+                    setFileStatus(status, false);
+                };
+                reader.onerror = function() {
+                    setFileStatus(`Could not read ${file.name}`, true);
+                };
+                reader.readAsText(file);
+            }
+
+            const fileInput = document.getElementById('fasta-file');
+            fileInput.addEventListener('change', function() {
+                loadFastaFile(this.files[0]);
+                // Reset, so that picking the same file again still fires 'change'.
+                this.value = '';
+            });
+
+            // Dropping a file on the text box loads it; dragging plain text is left
+            // to the browser's own handling.
+            const textarea = document.getElementById('sequences');
+            function draggingFile(ev) {
+                return Array.from(ev.dataTransfer.types || []).includes('Files');
+            }
+            ['dragenter', 'dragover'].forEach(name =>
+                textarea.addEventListener(name, function(ev) {
+                    if (!draggingFile(ev)) return;
+                    ev.preventDefault();
+                    ev.dataTransfer.dropEffect = 'copy';
+                    textarea.classList.add('is-drop-target');
+                }));
+            ['dragleave', 'dragend'].forEach(name =>
+                textarea.addEventListener(name, function() {
+                    textarea.classList.remove('is-drop-target');
+                }));
+            textarea.addEventListener('drop', function(ev) {
+                if (!draggingFile(ev)) return;
+                ev.preventDefault();
+                textarea.classList.remove('is-drop-target');
+                loadFastaFile(ev.dataTransfer.files[0]);
+            });
+
             $('#matrix-container').on('click', '.matrix-cell[data-i]', function() {
                 window.showPair(parseInt(this.dataset.i, 10), parseInt(this.dataset.j, 10));
             });
@@ -474,11 +542,13 @@
                 e.preventDefault();
                 $('#sequences').val(example_erm);
                 $('#sequence-type').val('protein').trigger('change');
+                $('#file-status').text('');
             });
             $('#load-example-dna').on('click', function(e) {
                 e.preventDefault();
                 $('#sequences').val(example_dna);
                 $('#sequence-type').val('dna').trigger('change');
+                $('#file-status').text('');
             });
             $('#toggle-advanced').on('click', function(e) {
                 e.preventDefault();
@@ -509,13 +579,22 @@
                 <h1>Web Bio Tools</h1>
                 <h2>All-by-all Sequence Alignment</h2>
                 <p>
-                    Paste two or more sequences in FASTA format below. Every sequence is
+                    Paste two or more sequences in FASTA format below, or upload a FASTA
+                    file (you can also drop one onto the text box). Every sequence is
                     aligned against every other one and the results are shown as a matrix.
                     Click any cell to see the underlying pairwise alignment.
                 </p>
                 <textarea id="sequences" class="form-control"
-                          placeholder="Enter two or more sequences in FASTA format"
+                          placeholder="Enter two or more sequences in FASTA format, or drop a FASTA file here"
                           rows=14></textarea>
+                <p class="mt-2 mb-1">
+                    <label for="fasta-file" class="btn btn-outline-secondary btn-sm mb-0">
+                        <i class="fa fa-upload"></i> Upload FASTA file
+                    </label>
+                    <input type="file" id="fasta-file" class="sr-only"
+                           accept=".fa,.fas,.fasta,.faa,.fna,.ffn,.seq,.txt,text/plain">
+                    <span id="file-status" class="small text-muted ml-2"></span>
+                </p>
                 <p class="mt-2">
                     Load examples:
                     <a href="#" id="load-example-proteins">six proteins (two families)</a> |
